@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TD4 VAT - Révision et Exercices</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\(', '\)']],
+                displayMath: [['$$', '$$'], ['\[', '\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+</head>
+<body>
+
+    <!-- Header / Navigation Fixe -->
+    <header class="app-header">
+        <div class="header-container">
+            <h1 class="logo">TD4 <span>VAT</span></h1>
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-target="module-cours">Bases & Cours</button>
+                <button class="tab-btn" data-target="module-ex2">Ex 2 (Périodique)</button>
+                <button class="tab-btn" data-target="module-ex3">Ex 3 (Sporadique)</button>
+                <button class="tab-btn" data-target="module-ex4">Ex 4 (Départs Différés)</button>
+                <button class="tab-btn" data-target="module-ex5">Ex 5 (Arbitraire)</button>
+                <button class="tab-btn" data-target="module-ex6">Ex 6 (Viabilité)</button>
+                <button class="tab-btn" data-target="module-rta">Calculateur RTA</button>
+            </nav>
+            <div class="actions">
+                <button id="exam-mode-toggle" class="action-btn">
+                    <span class="icon">👁️</span> Mode Réécriture
+                </button>
+                <button id="print-btn" class="action-btn" onclick="window.print()">
+                    <span class="icon">🖨️</span> PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteneur Principal pour les modules SPA -->
+    <main id="content-area">
+        
+        <!-- Module: Bases & Cours -->
+        <section id="module-cours" class="module active" data-src="modules/cours.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Exercice 2 -->
+        <section id="module-ex2" class="module" data-src="modules/ex2.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Exercice 3 -->
+        <section id="module-ex3" class="module" data-src="modules/ex3.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Exercice 4 -->
+        <section id="module-ex4" class="module" data-src="modules/ex4.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Exercice 5 -->
+        <section id="module-ex5" class="module" data-src="modules/ex5.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Exercice 6 -->
+        <section id="module-ex6" class="module" data-src="modules/ex6.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+        <!-- Module: Calculateur RTA -->
+        <section id="module-rta" class="module" data-src="modules/rta.html">
+            <!-- Contenu chargé dynamiquement -->
+        </section>
+
+    </main>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>

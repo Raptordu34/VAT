@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Animation Simulation - TD 4 Exercice 4</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f0f2f5; 
+            padding: 20px; 
+            color: #333;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+        }
+        h1 { color: #2c3e50; text-align: center; }
+        p.intro { text-align: center; font-size: 1.1em; color: #666; margin-bottom: 30px;}
+        
+        .layout { display: flex; gap: 30px; flex-direction: column;}
+        
+        .graph-panel { width: 100%; overflow-x: auto;}
+        svg { 
+            background: #fafafa; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .control-panel { 
+            display: flex; 
+            gap: 20px;
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+        }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 10px; min-width: 200px;}
+        button { 
+            padding: 12px; 
+            font-size: 16px; 
+            font-weight: bold;
+            cursor: pointer; 
+            border: none; 
+            border-radius: 6px; 
+            transition: all 0.2s;
+        }
+        #btn-next { background: #0984e3; color: white; }
+        #btn-next:hover:not(:disabled) { background: #0768b8; }
+        #btn-next:disabled { background: #a4b0be; cursor: not-allowed; }
+        #btn-reset { background: #dfe6e9; color: #2d3436; }
+        #btn-reset:hover { background: #b2bec3; }
+
+        .formula-box {
+            flex-grow: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 5px solid #00b894;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        .formula-box h3 { margin-top: 0; color: #00b894; font-size: 1.2em; }
+        
+        /* SVG Styles */
+        .axis { stroke: #2d3436; stroke-width: 2; }
+        .grid { stroke: #dfe6e9; stroke-width: 1; }
+        .grid-text { fill: #636e72; font-size: 14px; }
+        .task-label { font-size: 16px; font-weight: bold; fill: #2d3436; }
+        
+        .arrow-up { stroke: #2d3436; stroke-width: 2; marker-end: url(#arrow); }
+        .arrow-down { stroke: #d63031; stroke-width: 2; marker-end: url(#arrow-red); }
+        
+        .block-t1 { fill: #74b9ff; stroke: #0984e3; stroke-width: 2; }
+        .block-t3 { fill: #55efc4; stroke: #00b894; stroke-width: 2; }
+        .block-t2 { fill: #fab1a0; stroke: #d63031; stroke-width: 2; }
+        
+        .anim-element { opacity: 0; transition: opacity 0.4s ease-in; }
+        .visible { opacity: 1 !important; }
+        
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Animation Simulation : Exercice 4</h1>
+    <p class="intro">
+        Système à départs différés : 
+        <span style="color:#0984e3;font-weight:bold;">&tau;<sub>1</sub> = &lang;O<sub>1</sub>=0, C<sub>1</sub>=1, T<sub>1</sub>=4&rang;</span> | 
+        <span style="color:#00b894;font-weight:bold;">&tau;<sub>3</sub> = &lang;O<sub>3</sub>=2, C<sub>3</sub>=1, T<sub>3</sub>=4&rang;</span> | 
+        <span style="color:#d63031;font-weight:bold;">&tau;<sub>2</sub> = &lang;O<sub>2</sub>=1, C<sub>2</sub>=3, T<sub>2</sub>=6&rang;</span>
+        <br>Priorités RM : &tau;<sub>1</sub> > &tau;<sub>3</sub> > &tau;<sub>2</sub>
+    </p>
+
+    <div class="layout">
+        <div class="graph-panel">
+            <svg id="graph" width="900" height="350" viewBox="0 0 900 350">
+                <!-- SVG Content -->
+            </svg>
+        </div>
+        
+        <div class="control-panel">
+            <div class="btn-group">
+                <button id="btn-next" onclick="nextStep()">Avancer le temps (+1)</button>
+                <button id="btn-reset" onclick="resetAnimation()">Recommencer</button>
+            </div>
+            <div class="formula-box" id="explanation">
+                <h3>t = 0</h3>
+                <p>Début de la simulation.</p>
+                <p>La tâche <strong>&tau;<sub>1</sub></strong> s'active (Offset = 0). Elle est la plus prioritaire, elle commence à s'exécuter.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const svg = document.getElementById('graph');
+    
+    // Paramètres graphiques
+    const scaleX = 50; // 1 unité = 50px
+    const offsetX = 80;
+    const yT1 = 60, yT3 = 160, yT2 = 260; // Positions Y des lignes de tâches
+    const blockH = 30; // Hauteur d'un bloc d'exécution
+    const maxTime = 14;
+
+    function cx(t) { return offsetX + t * scaleX; }
+
+    function drawBase() {
+        svg.innerHTML = `
+        <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d3436" />
+            </marker>
+            <marker id="arrow-red" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#d63031" />
+            </marker>
+        </defs>`;
+
+        // Lignes de temps
+        svg.innerHTML += `<text x="20" y="${yT1+5}" class="task-label">&tau;1</text>`;
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${yT1}" x2="${cx(maxTime+0.5)}" y2="${yT1}" class="axis" marker-end="url(#arrow)" />`;
+        
+        svg.innerHTML += `<text x="20" y="${yT3+5}" class="task-label">&tau;3</text>`;
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${yT3}" x2="${cx(maxTime+0.5)}" y2="${yT3}" class="axis" marker-end="url(#arrow)" />`;
+        
+        svg.innerHTML += `<text x="20" y="${yT2+5}" class="task-label">&tau;2</text>`;
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${yT2}" x2="${cx(maxTime+0.5)}" y2="${yT2}" class="axis" marker-end="url(#arrow)" />`;
+
+        // Grille verticale et numéros
+        for(let i=0; i<=maxTime; i++) {
+            svg.innerHTML += `<line x1="${cx(i)}" y1="20" x2="${cx(i)}" y2="300" class="grid" />`;
+            svg.innerHTML += `<text x="${cx(i)-4}" y="320" class="grid-text">${i}</text>`;
+        }
+    }
+
+    // Données de la simulation (pré-calculées)
+    // T1(0,1,4), T3(2,1,4), T2(1,3,6)
+    // Prio: T1 > T3 > T2
+    const simData = [
+        { t: 0, text: "&tau;<sub>1</sub> s'active (Offset 0) et s'exécute (priorité max).", draw: () => { drawArrowUp(yT1, 0); drawBlock(yT1, 0, 'block-t1'); drawArrowDown(yT1, 4); } },
+        { t: 1, text: "&tau;<sub>1</sub> a fini. <br>&tau;<sub>2</sub> s'active (Offset 1) et commence à s'exécuter.", draw: () => { drawArrowUp(yT2, 1); drawBlock(yT2, 1, 'block-t2'); drawArrowDown(yT2, 7); } },
+        { t: 2, text: "&tau;<sub>3</sub> s'active (Offset 2). Comme sa priorité est supérieure à &tau;<sub>2</sub>, <strong>il préempte &tau;<sub>2</sub></strong> et s'exécute.", draw: () => { drawArrowUp(yT3, 2); drawBlock(yT3, 2, 'block-t3'); drawArrowDown(yT3, 6); } },
+        { t: 3, text: "&tau;<sub>3</sub> a fini. &tau;<sub>2</sub> reprend son exécution.", draw: () => { drawBlock(yT2, 3, 'block-t2'); } },
+        { t: 4, text: "Nouvelle période pour &tau;<sub>1</sub>. Il s'active et <strong>préempte &tau;<sub>2</sub></strong>.", draw: () => { drawArrowUp(yT1, 4); drawBlock(yT1, 4, 'block-t1'); drawArrowDown(yT1, 8); } },
+        { t: 5, text: "&tau;<sub>1</sub> a fini. &tau;<sub>2</sub> reprend et <strong>termine sa 3ème unité d'exécution !</strong><br>Son temps de réponse réel est de 6 (de t=1 à t=7), juste à temps pour son échéance.", draw: () => { drawBlock(yT2, 5, 'block-t2'); } },
+        { t: 6, text: "Le processeur est inactif (idle time).<br>Nouvelle période pour &tau;<sub>3</sub>. Il s'active et s'exécute.", draw: () => { drawArrowUp(yT3, 6); drawBlock(yT3, 6, 'block-t3'); drawArrowDown(yT3, 10); } },
+        { t: 7, text: "Nouvelle période pour &tau;<sub>2</sub>. Il s'active et s'exécute.", draw: () => { drawArrowUp(yT2, 7); drawBlock(yT2, 7, 'block-t2'); drawArrowDown(yT2, 13); } },
+        { t: 8, text: "Nouvelle période pour &tau;<sub>1</sub>. Il préempte &tau;<sub>2</sub>.", draw: () => { drawArrowUp(yT1, 8); drawBlock(yT1, 8, 'block-t1'); drawArrowDown(yT1, 12); } },
+        { t: 9, text: "&tau;<sub>1</sub> a fini. &tau;<sub>2</sub> reprend son exécution.", draw: () => { drawBlock(yT2, 9, 'block-t2'); } },
+        { t: 10, text: "Nouvelle période pour &tau;<sub>3</sub>. Il préempte &tau;<sub>2</sub>.", draw: () => { drawArrowUp(yT3, 10); drawBlock(yT3, 10, 'block-t3'); drawArrowDown(yT3, 14); } },
+        { t: 11, text: "&tau;<sub>3</sub> a fini. &tau;<sub>2</sub> termine sa 3ème unité !", draw: () => { drawBlock(yT2, 11, 'block-t2'); } },
+        { t: 12, text: "Fin de l'observation pertinente. On constate que &tau;<sub>2</sub> n'a jamais raté son échéance malgré un U=100%.", draw: () => { 
+            let expl = document.getElementById("explanation");
+            expl.innerHTML = `<h3>Conclusion</h3><p>La RTA avait prédit un temps de réponse de 7 pour &tau;<sub>2</sub>. Mais en traçant la simulation (qui prend en compte les décalages), on voit que <strong>le pire temps de réponse observé n'est que de 6</strong> (pile son échéance).</p><p style="color: #00b894; font-weight:bold;">Le système est donc ordonnançable !</p>`;
+            document.getElementById("btn-next").disabled = true;
+        } }
+    ];
+
+    let currentT = 0;
+
+    function drawArrowUp(y, t) {
+        let line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", cx(t)); line.setAttribute("y1", y);
+        line.setAttribute("x2", cx(t)); line.setAttribute("y2", y - 30);
+        line.setAttribute("class", "arrow-up anim-element visible");
+        svg.appendChild(line);
+    }
+    
+    function drawArrowDown(y, t) {
+        let line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", cx(t)); line.setAttribute("y1", y - 30);
+        line.setAttribute("x2", cx(t)); line.setAttribute("y2", y);
+        line.setAttribute("class", "arrow-down anim-element visible");
+        svg.appendChild(line);
+    }
+
+    function drawBlock(y, t, className) {
+        let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", cx(t)); rect.setAttribute("y", y - blockH);
+        rect.setAttribute("width", scaleX); rect.setAttribute("height", blockH);
+        rect.setAttribute("class", `${className} anim-element visible`);
+        svg.appendChild(rect);
+    }
+
+    function nextStep() {
+        if (currentT < simData.length) {
+            let step = simData[currentT];
+            if(step.text) {
+                document.getElementById("explanation").innerHTML = `<h3>t = ${step.t}</h3><p>${step.text}</p>`;
+            }
+            if(step.draw) step.draw();
+            currentT++;
+        }
+    }
+
+    function resetAnimation() {
+        currentT = 0;
+        document.getElementById("btn-next").disabled = false;
+        document.getElementById("explanation").innerHTML = `<h3>t = 0</h3><p>Début de la simulation.</p><p>La tâche <strong>&tau;<sub>1</sub></strong> s'active (Offset = 0). Elle est la plus prioritaire, elle commence à s'exécuter.</p>`;
+        drawBase();
+    }
+
+    window.onload = resetAnimation;
+</script>
+
+</body>
+</html>

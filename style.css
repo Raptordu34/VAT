@@ -1,0 +1,384 @@
+:root {
+    /* Palette de couleurs */
+    --bg-color: #FDFBF7; /* Ivoire / Feuille de papier */
+    --text-color: #111827; /* Noir profond */
+    --text-muted: #4B5563; /* Gris foncé pour texte secondaire */
+    --accent-color: #D34324; /* Orange ISAE-ENSMA inspiré */
+    --accent-hover: #B2351A;
+    --card-bg: #FFFFFF;
+    --border-color: #E5E7EB;
+    
+    /* Typographie */
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    
+    /* Espacements & Layout */
+    --header-height: 70px;
+    --content-max-width: 900px;
+    --radius: 8px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* Reset & Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Typographie spécifique */
+h1, h2, h3, h4 {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.75rem;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+code, .math-inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background-color: #F3F4F6;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+}
+
+/* Shell : Navigation Fixe */
+.app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--header-height);
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100%;
+    padding: 0 1.5rem;
+}
+
+.logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 0;
+}
+
+.logo span {
+    color: var(--accent-color);
+}
+
+.tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    height: 100%;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0 1rem;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+
+.tab-btn:hover {
+    color: var(--text-color);
+}
+
+.tab-btn.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+}
+
+.actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background-color: #F3F4F6;
+    border: 1px solid var(--border-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: var(--text-color);
+}
+
+.action-btn:hover {
+    background-color: #E5E7EB;
+}
+
+#exam-mode-toggle.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Conteneur Principal */
+#content-area {
+    margin-top: calc(var(--header-height) + 2rem);
+    padding: 0 1.5rem 3rem 1.5rem;
+    max-width: var(--content-max-width);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Modules (SPA State) */
+.module {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.module.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cartes de contenu */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+
+/* Mode "Réécriture / Examen" */
+.correction {
+    background-color: #F9FAFB;
+    border-left: 4px solid var(--accent-color);
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+body.exam-mode .correction {
+    filter: blur(6px);
+    opacity: 0.7;
+    transition: filter 0.3s ease, opacity 0.3s ease;
+    cursor: help;
+}
+
+body.exam-mode .correction:hover {
+    filter: blur(0);
+    opacity: 1;
+}
+
+/* Optimisation PDF (Impression) */
+@media print {
+    .app-header {
+        display: none !important;
+    }
+    
+    #content-area {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    .module {
+        display: block !important;
+        page-break-after: always;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+    
+    body.exam-mode .correction {
+        filter: none !important;
+        opacity: 1 !important;
+    }
+    
+    body {
+        background-color: white !important;
+    }
+}
+
+/* --- Styles Pédagogiques (Cours) --- */
+.info-box {
+    background-color: #F0F9FF; /* Bleu très léger */
+    border-left: 4px solid #3B82F6; /* Bleu doux */
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.info-box h4 {
+    color: #1E40AF;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.math-block {
+    background-color: #F9FAFB;
+    padding: 1rem;
+    border-radius: var(--radius);
+    text-align: center;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+}
+
+.formula-highlight {
+    border: 2px dashed var(--accent-color);
+    background-color: #FFF7F5;
+}
+
+.card ul {
+    margin-left: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.card li {
+    margin-bottom: 0.5rem;
+}
+
+/* --- Gantt Charts / Chronogrammes --- */
+.gantt-container {
+    margin: 2rem 0;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.gantt-header {
+    display: flex;
+    margin-left: 60px; /* Espace pour le label */
+    border-bottom: 1px solid #ccc;
+    position: relative;
+    height: 20px;
+}
+
+.gantt-tick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    bottom: 2px;
+}
+
+.gantt-row {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    height: 40px;
+}
+
+.gantt-label {
+    width: 60px;
+    font-weight: bold;
+    font-family: var(--font-mono);
+}
+
+.gantt-track {
+    flex-grow: 1;
+    height: 100%;
+    background-color: #f8f9fa;
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.gantt-task {
+    position: absolute;
+    height: 100%;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+    /* Animation d'apparition */
+    animation: slideIn 1s ease-out forwards;
+    transform-origin: left center;
+}
+
+@keyframes slideIn {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+.gantt-task.t1 { background-color: #EF4444; } /* Rouge */
+.gantt-task.t2 { background-color: #3B82F6; } /* Bleu */
+.gantt-task.t3 { background-color: #10B981; } /* Vert */
+
+.gantt-arrival {
+    position: absolute;
+    top: -5px;
+    bottom: -5px;
+    width: 2px;
+    background-color: #000;
+    z-index: 10;
+}
+
+.gantt-arrival::after {
+    content: '↑';
+    position: absolute;
+    bottom: -15px;
+    left: -5px;
+    font-size: 14px;
+    color: black;
+}
+
+.gantt-deadline {
+    position: absolute;
+    top: -5px;
+    bottom: -5px;
+    width: 2px;
+    background-color: #D34324;
+    z-index: 10;
+}
+
+.gantt-deadline::after {
+    content: '↓';
+    position: absolute;
+    top: -15px;
+    left: -5px;
+    font-size: 14px;
+    color: #D34324;
+}

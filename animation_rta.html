@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Animation RTA - TD 4 Exercice 1</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f0f2f5; 
+            padding: 20px; 
+            color: #333;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+        }
+        h1 { color: #2c3e50; text-align: center; }
+        p.intro { text-align: center; font-size: 1.1em; color: #666; margin-bottom: 30px;}
+        
+        .layout { display: flex; gap: 30px; }
+        
+        .graph-panel { flex: 2; }
+        svg { 
+            background: #fafafa; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .control-panel { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+        }
+        
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { 
+            flex: 1;
+            padding: 12px; 
+            font-size: 16px; 
+            font-weight: bold;
+            cursor: pointer; 
+            border: none; 
+            border-radius: 6px; 
+            transition: all 0.2s;
+        }
+        #btn-next { background: #0984e3; color: white; }
+        #btn-next:hover:not(:disabled) { background: #0768b8; }
+        #btn-next:disabled { background: #a4b0be; cursor: not-allowed; }
+        #btn-reset { background: #dfe6e9; color: #2d3436; }
+        #btn-reset:hover { background: #b2bec3; }
+
+        .formula-box {
+            flex-grow: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 5px solid #0984e3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        .formula-box h3 { margin-top: 0; color: #0984e3; font-size: 1.2em; }
+        .math { font-family: monospace; background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 1.1em; }
+        
+        /* SVG Styles */
+        .axis { stroke: #2d3436; stroke-width: 2; }
+        .grid { stroke: #dfe6e9; stroke-width: 1; }
+        .grid-text { fill: #636e72; font-size: 12px; }
+        
+        .rbf-line { stroke: #d63031; stroke-width: 3; fill: none; }
+        .rbf-jump { stroke: #d63031; stroke-width: 2; stroke-dasharray: 4,4; fill: none; opacity: 0.5; }
+        .traitement { stroke: #00b894; stroke-width: 3; }
+        
+        /* Animation elements */
+        .anim-line { stroke-width: 3; fill: none; transition: stroke-dashoffset 0.8s ease-in-out; }
+        .anim-point { transition: opacity 0.3s; }
+        
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Animation RTA : Recherche du Point Fixe</h1>
+    <p class="intro">Système : &tau;<sub>1</sub> = &lang;C<sub>1</sub>=1, T<sub>1</sub>=4&rang; | &tau;<sub>2</sub> = &lang;C<sub>2</sub>=10, T<sub>2</sub>=14&rang;. <br>Objectif : Calculer le pire temps de réponse de &tau;<sub>2</sub> (w<sub>2</sub>).</p>
+
+    <div class="layout">
+        <div class="graph-panel">
+            <svg id="graph" width="600" height="550" viewBox="0 0 600 550">
+                <!-- Les éléments SVG seront générés par JavaScript -->
+            </svg>
+        </div>
+        
+        <div class="control-panel">
+            <div class="btn-group">
+                <button id="btn-next" onclick="nextStep()">Étape Suivante</button>
+                <button id="btn-reset" onclick="resetAnimation()">Recommencer</button>
+            </div>
+            <div class="formula-box" id="explanation">
+                <h3>Prêt à calculer !</h3>
+                <p>La ligne verte <strong>y = x</strong> représente la puissance de traitement du processeur (le temps qui s'écoule).</p>
+                <p>La ligne rouge en escalier est la <strong>RBF</strong> (Demande Processeur). Elle monte à chaque fois qu'une tâche s'active.</p>
+                <p>Clique sur <em>Étape Suivante</em> pour commencer la résolution de l'équation.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const svg = document.getElementById('graph');
+    
+    // Paramètres du graphe
+    const offsetX = 40;
+    const offsetY = 500;
+    const scale = 32; // 1 unité = 32 pixels
+    
+    // Convertir les coordonnées mathématiques en pixels SVG
+    function cx(x) { return offsetX + x * scale; }
+    function cy(y) { return offsetY - y * scale; }
+
+    function drawBaseGraph() {
+        // Nettoyer le SVG
+        svg.innerHTML = '';
+        
+        // 1. Grille et Axes
+        for (let i = 0; i <= 16; i++) {
+            // Lignes verticales
+            svg.innerHTML += `<line x1="${cx(i)}" y1="${cy(0)}" x2="${cx(i)}" y2="${cy(16)}" class="grid" />`;
+            // Lignes horizontales
+            svg.innerHTML += `<line x1="${cx(0)}" y1="${cy(i)}" x2="${cx(16)}" y2="${cy(i)}" class="grid" />`;
+            
+            // Étiquettes
+            if(i % 2 === 0 && i > 0) {
+                svg.innerHTML += `<text x="${cx(i) - 8}" y="${cy(0) + 20}" class="grid-text">${i}</text>`;
+                svg.innerHTML += `<text x="${cx(0) - 25}" y="${cy(i) + 4}" class="grid-text">${i}</text>`;
+            }
+        }
+        
+        // Axes principaux
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${cy(0)}" x2="${cx(16.5)}" y2="${cy(0)}" class="axis" marker-end="url(#arrow)" />`;
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${cy(0)}" x2="${cx(0)}" y2="${cy(16.5)}" class="axis" marker-end="url(#arrow)" />`;
+        
+        // Ligne Traitement y = x
+        svg.innerHTML += `<line x1="${cx(0)}" y1="${cy(0)}" x2="${cx(16)}" y2="${cy(16)}" class="traitement" />`;
+        svg.innerHTML += `<text x="${cx(14)}" y="${cy(14.5)}" fill="#00b894" font-weight="bold">Traitement (y=x)</text>`;
+
+        // Courbe RBF (en escalier)
+        let rbfG = '<g class="rbf">';
+        for (let i = 0; i < 4; i++) {
+            let startX = i * 4;
+            let endX = (i + 1) * 4;
+            let y = 11 + i; // w2(0) = 10 (base) + 1 (pour t>0)
+            
+            // Ligne horizontale
+            rbfG += `<line x1="${cx(startX)}" y1="${cy(y)}" x2="${cx(endX)}" y2="${cy(y)}" class="rbf-line" />`;
+            
+            // Cercle ouvert (début)
+            if (i > 0) rbfG += `<circle cx="${cx(startX)}" cy="${cy(y)}" r="4" fill="white" stroke="#d63031" stroke-width="2" />`;
+            
+            // Cercle plein (fin)
+            rbfG += `<circle cx="${cx(endX)}" cy="${cy(y)}" r="4" fill="#d63031" />`;
+            
+            // Ligne de saut (verticale pointillée)
+            if (i < 3) {
+                rbfG += `<line x1="${cx(endX)}" y1="${cy(y)}" x2="${cx(endX)}" y2="${cy(y+1)}" class="rbf-jump" />`;
+            }
+        }
+        rbfG += `<text x="${cx(1)}" y="${cy(11.5)}" fill="#d63031" font-weight="bold">Demande RBF</text>`;
+        svg.innerHTML += rbfG + '</g>';
+        
+        // Fleches pour les axes
+        svg.innerHTML += `
+        <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d3436" />
+            </marker>
+        </defs>`;
+    }
+
+    // Outils d'animation
+    function animateLine(id, x1, y1, x2, y2, color, isDashed=false) {
+        let length = Math.sqrt(Math.pow(cx(x2)-cx(x1), 2) + Math.pow(cy(y2)-cy(y1), 2));
+        let dash = isDashed ? "5,5" : length;
+        let offset = isDashed ? "0" : length;
+        
+        let line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("id", id);
+        line.setAttribute("x1", cx(x1)); line.setAttribute("y1", cy(y1));
+        line.setAttribute("x2", cx(x2)); line.setAttribute("y2", cy(y2));
+        line.setAttribute("stroke", color);
+        line.setAttribute("class", "anim-line");
+        if(!isDashed) {
+            line.setAttribute("stroke-dasharray", dash);
+            line.setAttribute("stroke-dashoffset", offset);
+        } else {
+            line.setAttribute("stroke-dasharray", dash);
+        }
+        svg.appendChild(line);
+        
+        // Trigger animation
+        if(!isDashed) {
+            setTimeout(() => { line.setAttribute("stroke-dashoffset", "0"); }, 50);
+        }
+    }
+
+    function animatePoint(id, x, y, color) {
+        let pt = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        pt.setAttribute("id", id);
+        pt.setAttribute("cx", cx(x)); pt.setAttribute("cy", cy(y));
+        pt.setAttribute("r", "5");
+        pt.setAttribute("fill", color);
+        pt.setAttribute("class", "anim-point");
+        pt.style.opacity = "0";
+        svg.appendChild(pt);
+        setTimeout(() => { pt.style.opacity = "1"; }, 300);
+    }
+
+    // Logique des étapes
+    let currentStep = 0;
+    const expl = document.getElementById("explanation");
+    const btnNext = document.getElementById("btn-next");
+
+    const steps = [
+        () => { // Étape 1
+            expl.innerHTML = `
+                <h3>Étape 0 : Initialisation</h3>
+                <p>On initialise avec le temps de la tâche elle-même :</p>
+                <p class="math">w<sub>2</sub><sup>(0)</sup> = C<sub>2</sub> = 10</p>
+                <p>Graphiquement, on se place à <strong>t = 10</strong> sur l'axe horizontal (ligne de traitement bleue).</p>
+            `;
+            animateLine("l0", 10, 0, 10, 10, "#0984e3", true);
+            animatePoint("p0", 10, 10, "#0984e3");
+        },
+        () => { // Étape 2
+            expl.innerHTML = `
+                <h3>Étape 1 : Calcul de l'interférence (1)</h3>
+                <p>On évalue la RBF pour la fenêtre de temps t=10 :</p>
+                <p class="math">w<sub>2</sub><sup>(1)</sup> = 10 + &lceil;10/4&rceil; &times; 1 = 10 + 3 = 13</p>
+                <p>On projette verticalement (rouge) pour trouver la nouvelle demande, puis horizontalement (bleu) pour trouver le nouveau temps.</p>
+            `;
+            animateLine("lv1", 10, 10, 10, 13, "#e17055"); // Montée rouge
+            setTimeout(() => animatePoint("p1_r", 10, 13, "#e17055"), 800);
+            setTimeout(() => animateLine("lh1", 10, 13, 13, 13, "#0984e3"), 1100); // Droite bleue
+            setTimeout(() => animatePoint("p1_b", 13, 13, "#0984e3"), 1900);
+        },
+        () => { // Étape 3
+            expl.innerHTML = `
+                <h3>Étape 2 : Calcul de l'interférence (2)</h3>
+                <p>Notre fenêtre s'est agrandie (t=13). On réévalue :</p>
+                <p class="math">w<sub>2</sub><sup>(2)</sup> = 10 + &lceil;13/4&rceil; &times; 1 = 10 + 4 = 14</p>
+                <p>&tau;<sub>1</sub> a eu le temps de s'activer une fois de plus ! Le temps s'allonge encore.</p>
+            `;
+            animateLine("lv2", 13, 13, 13, 14, "#e17055");
+            setTimeout(() => animatePoint("p2_r", 13, 14, "#e17055"), 800);
+            setTimeout(() => animateLine("lh2", 13, 14, 14, 14, "#0984e3"), 1100);
+            setTimeout(() => animatePoint("p2_b", 14, 14, "#0984e3"), 1900);
+        },
+        () => { // Étape 4
+            expl.innerHTML = `
+                <h3>Étape 3 : Point Fixe Atteint ! 🎉</h3>
+                <p>Notre fenêtre est à t=14. On réévalue :</p>
+                <p class="math">w<sub>2</sub><sup>(3)</sup> = 10 + &lceil;14/4&rceil; &times; 1 = 10 + 4 = 14</p>
+                <p>Le résultat ne change plus. Graphiquement, <strong>la droite bleue croise la ligne rouge</strong>.</p>
+                <p style="color: #00b894; font-weight:bold;">Le pire temps de réponse est de 14.</p>
+            `;
+            // Le point 14, 14 est déjà sur la courbe
+            let star = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            star.setAttribute("cx", cx(14)); star.setAttribute("cy", cy(14));
+            star.setAttribute("r", "8");
+            star.setAttribute("fill", "#fdcb6e");
+            star.setAttribute("stroke", "#e17055");
+            star.setAttribute("stroke-width", "3");
+            svg.appendChild(star);
+            
+            btnNext.disabled = true;
+            btnNext.innerText = "Terminé";
+        }
+    ];
+
+    function nextStep() {
+        if (currentStep < steps.length) {
+            steps[currentStep]();
+            currentStep++;
+        }
+    }
+
+    function resetAnimation() {
+        currentStep = 0;
+        btnNext.disabled = false;
+        btnNext.innerText = "Étape Suivante";
+        expl.innerHTML = `
+            <h3>Prêt à calculer !</h3>
+            <p>La ligne verte <strong>y = x</strong> représente la puissance de traitement du processeur.</p>
+            <p>La ligne rouge en escalier est la <strong>RBF</strong> (Demande Processeur).</p>
+            <p>Clique sur <em>Étape Suivante</em> pour commencer la résolution.</p>
+        `;
+        drawBaseGraph();
+    }
+
+    // Initialisation
+    window.onload = drawBaseGraph;
+</script>
+
+</body>
+</html>

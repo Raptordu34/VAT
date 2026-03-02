@@ -1,0 +1,154 @@
+<div class="card">
+    <h2>Exercice 2 : Tâches Périodiques Simultanées</h2>
+    <p>Soit le système S1 de trois tâches indépendantes, périodiques, <strong>simultanées</strong>, à <strong>échéances sur requête</strong>, dont les paramètres \( \langle C_i, T_i \rangle \) sont donnés par :</p>
+    <ul>
+        <li>\( \tau_1 = \langle 2, 4 \rangle \)</li>
+        <li>\( \tau_2 = \langle 1, 4 \rangle \)</li>
+        <li>\( \tau_3 = \langle 1, 8 \rangle \)</li>
+    </ul>
+    <p>Le système est ordonnancé suivant <strong>RM (Rate Monotonic)</strong>.</p>
+</div>
+
+<article class="card">
+    <h3>Analyse Préalable & Priorités</h3>
+    <div class="correction">
+        <p><strong>Simultanées</strong> : \( r_i = 0 \). Toutes les tâches démarrent en même temps, un <em>instant critique</em> existe donc physiquement.</p>
+        <p><strong>Échéance sur requête</strong> : \( D_i = T_i \).</p>
+        <p><strong>Ordonnancement RM</strong> : La priorité est donnée à la période (\( T_i \)) la plus courte.</p>
+        <ul>
+            <li>\( T_1 = 4 \), \( T_2 = 4 \), \( T_3 = 8 \).</li>
+            <li>En cas d'égalité (\( T_1 = T_2 \)), on départage arbitrairement par l'indice (\( \tau_1 \) passe avant \( \tau_2 \)).</li>
+            <li><strong>Priorités : \( P(\tau_1) > P(\tau_2) > P(\tau_3) \)</strong></li>
+        </ul>
+        <div class="info-box">
+            <h4>Ensembles de haute priorité (\( hp \))</h4>
+            <p>Cet ensemble liste les tâches qui peuvent "voler" le processeur à la tâche en cours :</p>
+            <ul>
+                <li>\( hp(1) = \emptyset \) (Personne ne peut l'interrompre)</li>
+                <li>\( hp(2) = \left\{ \tau_1 \right\} \)</li>
+                <li>\( hp(3) = \left\{ \tau_1, \tau_2 \right\} \)</li>
+            </ul>
+        </div>
+    </div>
+</article>
+
+<article class="card">
+    <h3>a) Calculer la charge du système S1, et conclure.</h3>
+    <div class="correction">
+        <div class="math-block">
+            \[ U = \sum_{i=1}^{n} \frac{C_i}{T_i} = \frac{C_1}{T_1} + \frac{C_2}{T_2} + \frac{C_3}{T_3} \]
+            \[ U = \frac{2}{4} + \frac{1}{4} + \frac{1}{8} = 0.5 + 0.25 + 0.125 = \mathbf{0.875} \]
+        </div>
+        <p><strong>Conclusion :</strong> La charge est de <strong>87,5%</strong>. Puisque \( U \le 1 \), le système satisfait la condition nécessaire de base. Le processeur est suffisamment puissant pour absorber la charge globale, mais il faut vérifier avec la RTA pour s'assurer de l'ordonnançabilité sans dépassement d'échéance à l'instant critique.</p>
+    </div>
+</article>
+
+<article class="card">
+    <h3>b) & c) RM est-il optimal ? La RTA est-elle exacte ?</h3>
+    <div class="correction">
+        <p><strong>b) RM est-il optimal pour S1 ? Oui.</strong> <br>L'algorithme RM est optimal car le système S1 respecte strictement toutes les conditions de Liu & Layland : tâches indépendantes, préemptibles, sur un seul processeur, avec un instant critique existant (simultanées), et la contrainte \( D_i = T_i \).</p>
+        <p><strong>c) La RTA est-elle exacte, pessimiste ou optimiste ? Exacte.</strong> <br>La formule de la RTA simule systématiquement le scénario où toutes les tâches démarrent à \( t=0 \) (l'instant critique). Puisque l'énoncé précise que les tâches sont "simultanées", ce scénario du pire va <em>réellement</em> se produire physiquement au démarrage du processeur. Le calcul correspond donc à la réalité absolue.</p>
+    </div>
+</article>
+
+<article class="card">
+    <h3>Illustration Pédagogique : Chronogramme RM</h3>
+    <p>Avant de faire les calculs abstraits, voici ce qui se passe <strong>visuellement</strong> dans le processeur sur une période d'étude de 8 unités (le PPCM des périodes 4, 4, 8) :</p>
+    
+    <div class="gantt-container">
+        <div class="gantt-header">
+            <!-- Ticks from 0 to 8 -->
+            <span class="gantt-tick" style="left: 0%;">0</span>
+            <span class="gantt-tick" style="left: 12.5%;">1</span>
+            <span class="gantt-tick" style="left: 25%;">2</span>
+            <span class="gantt-tick" style="left: 37.5%;">3</span>
+            <span class="gantt-tick" style="left: 50%;">4</span>
+            <span class="gantt-tick" style="left: 62.5%;">5</span>
+            <span class="gantt-tick" style="left: 75%;">6</span>
+            <span class="gantt-tick" style="left: 87.5%;">7</span>
+            <span class="gantt-tick" style="left: 100%;">8</span>
+        </div>
+        
+        <!-- Ligne pour Tau 1 -->
+        <div class="gantt-row">
+            <div class="gantt-label">\( \tau_1 \)</div>
+            <div class="gantt-track">
+                <!-- Arrivées (T=4) -->
+                <div class="gantt-arrival" style="left: 0%;"></div>
+                <div class="gantt-arrival" style="left: 50%;"></div>
+                <div class="gantt-arrival" style="left: 100%;"></div>
+                <!-- Exécution (C=2) -->
+                <div class="gantt-task t1" style="left: 0%; width: 25%;"><span style="animation: fadeIn 2s;">\( C_1 \)</span></div>
+                <div class="gantt-task t1" style="left: 50%; width: 25%;"><span style="animation: fadeIn 2s;">\( C_1 \)</span></div>
+            </div>
+        </div>
+
+        <!-- Ligne pour Tau 2 -->
+        <div class="gantt-row">
+            <div class="gantt-label">\( \tau_2 \)</div>
+            <div class="gantt-track">
+                <!-- Arrivées (T=4) -->
+                <div class="gantt-arrival" style="left: 0%;"></div>
+                <div class="gantt-arrival" style="left: 50%;"></div>
+                <div class="gantt-arrival" style="left: 100%;"></div>
+                <!-- Exécution (C=1) : Décalée par t1 -->
+                <div class="gantt-task t2" style="left: 25%; width: 12.5%;"><span style="animation: fadeIn 2s; animation-delay: 0.5s; opacity: 0; animation-fill-mode: forwards;">\( C_2 \)</span></div>
+                <div class="gantt-task t2" style="left: 75%; width: 12.5%;"><span style="animation: fadeIn 2s; animation-delay: 0.5s; opacity: 0; animation-fill-mode: forwards;">\( C_2 \)</span></div>
+            </div>
+        </div>
+
+        <!-- Ligne pour Tau 3 -->
+        <div class="gantt-row">
+            <div class="gantt-label">\( \tau_3 \)</div>
+            <div class="gantt-track">
+                <!-- Arrivées (T=8) -->
+                <div class="gantt-arrival" style="left: 0%;"></div>
+                <div class="gantt-arrival" style="left: 100%;"></div>
+                <!-- Exécution (C=1) : Décalée par t1 et t2 -->
+                <div class="gantt-task t3" style="left: 37.5%; width: 12.5%;"><span style="animation: fadeIn 2s; animation-delay: 1s; opacity: 0; animation-fill-mode: forwards;">\( C_3 \)</span></div>
+            </div>
+        </div>
+    </div>
+    <p><em>Explication visuelle :</em> À \( t=0 \), tout le monde arrive. La tâche rouge (\( \tau_1 \), haute priorité) s'exécute d'abord pendant 2 unités de temps. Ensuite, la tâche bleue (\( \tau_2 \)) s'exécute, puis enfin la tâche verte (\( \tau_3 \)) trouve de l'espace à \( t=3 \). Les calculs RTA qui suivent vont précisément retrouver ces valeurs mathématiquement !</p>
+</article>
+
+<article class="card">
+    <h3>d) Calculer avec la RTA le temps de réponse de chaque tâche, et conclure.</h3>
+    <div class="correction">
+        <h4>1. Temps de réponse de \( \tau_1 \) (Priorité 1)</h4>
+        <p>Aucune interférence possible (\( hp(1) \) est vide). La tâche rouge s'exécute directement.</p>
+        <ul>
+            <li>\( w_1^0 = C_1 = 2 \)</li>
+        </ul>
+        <p>Point fixe atteint : <strong>\( w_1 = 2 \)</strong>. <br><em>Vérification :</em> \( 2 \le D_1 \), avec \( D_1 = 4 \). La tâche \( \tau_1 \) est <strong>ordonnançable</strong>.</p>
+
+        <hr style="border: 0; height: 1px; background: #eee; margin: 15px 0;">
+
+        <h4>2. Temps de réponse de \( \tau_2 \) (Priorité 2)</h4>
+        <p>Elle est interrompue uniquement par \( \tau_1 \). (On le voit sur le graphique : elle doit attendre la fin de la barre rouge).</p>
+        <ul>
+            <li><strong>Étape 0 :</strong> \( w_2^0 = C_2 = 1 \)</li>
+            <li><strong>Étape 1 :</strong> On intègre l'interférence de \( \tau_1 \) pendant cette fenêtre de 1.<br>
+                \( w_2^1 = 1 + \left\lceil \frac{1}{4} \right\rceil \times 2 = 1 + (1 \times 2) = 3 \)</li>
+            <li><strong>Étape 2 :</strong> On met à jour avec la nouvelle fenêtre de temps (3).<br>
+                \( w_2^2 = 1 + \left\lceil \frac{3}{4} \right\rceil \times 2 = 1 + (1 \times 2) = 3 \)</li>
+        </ul>
+        <p>Point fixe atteint : <strong>\( w_2 = 3 \)</strong>. (Sur le graphique, la première barre bleue se termine bien à \( t=3 \)).<br><em>Vérification :</em> \( 3 \le D_2 \), avec \( D_2 = 4 \). La tâche \( \tau_2 \) est <strong>ordonnançable</strong>.</p>
+
+        <hr style="border: 0; height: 1px; background: #eee; margin: 15px 0;">
+
+        <h4>3. Temps de réponse de \( \tau_3 \) (Priorité 3)</h4>
+        <p>La tâche verte subit les interférences de \( \tau_1 \) ET de \( \tau_2 \).</p>
+        <ul>
+            <li><strong>Étape 0 :</strong> \( w_3^0 = C_3 = 1 \)</li>
+            <li><strong>Étape 1 :</strong> \( w_3^1 = 1 + \left( \left\lceil \frac{1}{4} \right\rceil \times 2 \right) + \left( \left\lceil \frac{1}{4} \right\rceil \times 1 \right) = 1 + 2 + 1 = 4 \)</li>
+            <li><strong>Étape 2 :</strong> \( w_3^2 = 1 + \left( \left\lceil \frac{4}{4} \right\rceil \times 2 \right) + \left( \left\lceil \frac{4}{4} \right\rceil \times 1 \right) = 1 + 2 + 1 = 4 \)</li>
+        </ul>
+        <p>Point fixe atteint : <strong>\( w_3 = 4 \)</strong>. (Sur le graphique, la barre verte se termine bien à \( t=4 \)).<br><em>Vérification :</em> \( 4 \le D_3 \), avec \( D_3 = 8 \). La tâche \( \tau_3 \) est <strong>ordonnançable</strong>.</p>
+
+        <div class="info-box" style="margin-top: 20px; background-color: #ECFDF5; border-color: #10B981;">
+            <h4 style="color: #047857;">Conclusion Finale (Exercice 2)</h4>
+            <p>Puisque le temps de réponse le plus défavorable (\( TR_i \)) de chaque tâche est strictement inférieur ou égal à son délai critique \( D_i \), <strong>le système S1 est parfaitement ordonnançable sous RM</strong>.</p>
+        </div>
+    </div>
+</article>

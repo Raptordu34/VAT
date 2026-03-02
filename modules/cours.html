@@ -1,0 +1,70 @@
+<div class="card">
+    <h2>Récapitulatif : Les bases de la RTA</h2>
+    <p>Ce module résume les notions essentielles pour comprendre l'Analyse de Temps de Réponse (Response-Time Analysis - RTA). Pour rendre les mathématiques intuitives, nous utilisons l'analogie d'un <strong>employé de bureau (le processeur)</strong> traitant des <strong>dossiers (les tâches)</strong>.</p>
+</div>
+
+<article class="card">
+    <h3>1. Bases de l'Ordonnancement Temps Réel (FTP)</h3>
+    <p>Le TD 4 porte sur l'ordonnancement à <strong>Priorités Fixes</strong>. Chaque tâche $\tau_i$ possède trois caractéristiques :</p>
+    <ul>
+        <li><strong>$C_i$ (Capacité)</strong> : Le temps d'exécution ininterrompu (ex: 2 min pour remplir un dossier).</li>
+        <li><strong>$D_i$ (Délai critique)</strong> : Le temps maximum autorisé pour terminer la tâche (ex: facture à traiter en moins de 10 min).</li>
+        <li><strong>$T_i$ (Période)</strong> : Le temps entre deux arrivées de cette tâche (ex: une facture toutes les 15 min).</li>
+    </ul>
+    
+    <div class="info-box">
+        <h4>Algorithmes Classiques</h4>
+        <ul>
+            <li><strong>Rate Monotonic (RM)</strong> : "Le plus fréquent d'abord". Plus $T_i$ est courte, plus la priorité est élevée. Optimal si $D_i = T_i$.</li>
+            <li><strong>Deadline Monotonic (DM)</strong> : "Le plus urgent d'abord". Plus $D_i$ est court, plus la priorité est élevée. Optimal si $D_i \le T_i$.</li>
+            <li><strong>Earliest Deadline First (EDF)</strong> : Priorité Dynamique. On exécute la tâche dont l'échéance absolue est la plus proche.</li>
+            <li><strong>Algorithme d'Audsley (OPA)</strong> : "Par élimination". On cherche à affecter la priorité la plus basse à une tâche qui respectera son échéance, et on remonte.</li>
+        </ul>
+    </div>
+</article>
+
+<article class="card">
+    <h3>2. La Charge du Système ($U$)</h3>
+    <p>La charge représente le pourcentage d'occupation total du processeur.</p>
+    <div class="math-block">
+        $$ U = \sum_{i=1}^{n} \frac{C_i}{T_i} $$
+    </div>
+    <ul>
+        <li><strong>Si $U > 1$ (plus de 100%)</strong> : Le système déborde. Trivialement non-ordonnançable.</li>
+        <li><strong>Si $U \le 1$ (100% ou moins)</strong> : Condition nécessaire (mais <strong>pas suffisante</strong>). Le système a une chance de fonctionner, mais il pourrait y avoir un problème à un instant précis. Il faut prouver avec la RTA.</li>
+    </ul>
+</article>
+
+<article class="card">
+    <h3>3. L'Instant Critique & La Simulation</h3>
+    <p><strong>L'instant critique</strong> est l'instant (généralement $t=0$) où <strong>toutes les tâches</strong> demandent à s'exécuter en même temps. C'est le pire scénario possible ("Le lundi matin à 8h00 avec la boîte aux lettres pleine"). Si une tâche respecte son échéance lors de l'instant critique, elle la respectera toujours.</p>
+    <div class="info-box">
+        <h4>Pourquoi la RTA plutôt que la Simulation ?</h4>
+        <p>La simulation (chronogramme) est comme filmer l'employé : c'est long et ça peut rater des cas limites (effets papillon si $C_i$ diminue). La RTA est une formule mathématique qui donne une preuve absolue (Condition Nécessaire et Suffisante).</p>
+    </div>
+</article>
+
+<article class="card">
+    <h3>4. L'Interférence & La Formule RTA</h3>
+    <p><strong>L'interférence</strong> est le temps qu'une tâche perd à cause des tâches plus prioritaires qui lui "volent" le processeur. On calcule la durée totale $w_i$ (temps de réponse) en ajoutant les interruptions jusqu'à ce que la durée se stabilise (le <strong>point fixe</strong>).</p>
+    
+    <div class="math-block formula-highlight">
+        $$ w_i^{n+1} = C_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i^n}{T_j} \right\rceil \times C_j $$
+    </div>
+    
+    <ul>
+        <li><strong>$w_i^{n+1}$</strong> : La nouvelle estimation du temps de réponse. (On commence à l'étape 0 avec $w_i^0 = C_i$).</li>
+        <li><strong>$C_i$</strong> : Le temps de base de notre tâche.</li>
+        <li><strong>$\sum_{j \in hp(i)}$</strong> : On additionne les interruptions venant des tâches <strong>plus prioritaires</strong> ($hp$ = higher priority).</li>
+        <li><strong>$\left\lceil \frac{w_i^n}{T_j} \right\rceil$</strong> : Le nombre de fois où la tâche prioritaire $j$ se déclenche pendant notre fenêtre de temps. Le symbole plafond ($\lceil \rceil$) arrondit à l'entier supérieur.</li>
+        <li><strong>$\times C_j$</strong> : On multiplie le nombre d'interruptions par le temps que dure chaque interruption.</li>
+    </ul>
+
+    <div class="correction">
+        <h4>💡 Méthode de résolution : Comment s'arrêter ?</h4>
+        <p>1. On démarre avec $w_i^0 = C_i$.</p>
+        <p>2. On calcule $w_i^1, w_i^2, \dots$ en remplaçant $w_i^n$ dans la formule.</p>
+        <p>3. On s'arrête de calculer quand <strong>$w_i^{n+1} = w_i^n$</strong>. On a trouvé notre point fixe, qui est le pire temps de réponse !</p>
+        <p>4. Si ce point fixe est <strong>$\le D_i$</strong>, la tâche respectera son échéance. Si ce point fixe dépasse $D_i$, la tâche n'est pas ordonnançable.</p>
+    </div>
+</article>

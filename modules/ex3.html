@@ -1,0 +1,98 @@
+<div class="card">
+    <h2>Exercice 3 : Tâches Sporadiques & Saturation</h2>
+    <p>Soit le système S2 de trois tâches indépendantes, <strong>sporadiques</strong>, à <strong>échéances sur requête</strong>, dont les paramètres $\langle C_i, T_i \rangle$ sont donnés par :</p>
+    <ul>
+        <li>$\tau_1 = \langle 2, 7 \rangle$</li>
+        <li>$\tau_2 = \langle 2, 4 \rangle$</li>
+        <li>$\tau_3 = \langle 3, 14 \rangle$</li>
+    </ul>
+    <p>Le système est ordonnancé suivant <strong>RM (Rate Monotonic)</strong>.</p>
+</div>
+
+<article class="card">
+    <h3>Analyse Préalable & Priorités</h3>
+    <div class="correction">
+        <p><strong>Sporadiques</strong> : $T_i$ représente l'intervalle minimum entre deux activations. Dans le pire cas, elles se comportent comme des périodiques simultanées.</p>
+        <p><strong>Ordonnancement RM</strong> : Priorité par période croissante.</p>
+        <ul>
+            <li>$T_2 (4) < T_1 (7) < T_3 (14)$</li>
+            <li><strong>Priorités : $P(\tau_2) > P(\tau_1) > P(\tau_3)$</strong></li>
+        </ul>
+        <p><em>Attention : L'indice ne correspond pas à l'ordre !</em></p>
+        <ul>
+            <li>$hp(2) = \emptyset$</li>
+            <li>$hp(1) = \{\tau_2\}$</li>
+            <li>$hp(3) = \{\tau_2, \tau_1\}$</li>
+        </ul>
+    </div>
+</article>
+
+<article class="card">
+    <h3>a) Calculer la charge du système S2, et conclure.</h3>
+    <div class="correction">
+        <div class="math-block">
+            $$ U = \frac{2}{7} + \frac{2}{4} + \frac{3}{14} = \frac{4}{14} + \frac{7}{14} + \frac{3}{14} = \frac{14}{14} = \mathbf{1} $$
+        </div>
+        <p><strong>Conclusion :</strong> La charge est de 100%. Le processeur sera utilisé sans temps mort. Système critique, RTA indispensable.</p>
+    </div>
+</article>
+
+<article class="card">
+    <h3>b & c) Optimalité RM et Précision RTA ?</h3>
+    <div class="correction">
+        <p><strong>Optimalité :</strong> Oui, RM reste optimal. Les tâches sporadiques ont $D_i = T_i$.</p>
+        <p><strong>Précision :</strong> Exacte. Le scénario d'avalanche (toutes activées à $t=0$ puis systématiquement au plus tôt) est physiquement possible pour des tâches sporadiques.</p>
+    </div>
+</article>
+
+<article class="card">
+    <h3>d) Calculer avec la RTA le temps de réponse (Lehoczky).</h3>
+    <div class="correction">
+        <h4>1. Tâche $\tau_2$ (Priorité 1)</h4>
+        <p>Point fixe atteint immédiatement : <strong>$w_2 = 2$</strong>. Ordonnançable ($2 \le 4$).</p>
+
+        <h4>2. Tâche $\tau_1$ (Priorité 2)</h4>
+        <ul>
+            <li>$w_1^0 = C_1 = 2$</li>
+            <li>$w_1^1 = 2 + \left\lceil \frac{2}{4} \right\rceil \times 2 = 2 + 2 = 4$</li>
+            <li>$w_1^2 = 2 + \left\lceil \frac{4}{4} \right\rceil \times 2 = 2 + 2 = 4$</li>
+        </ul>
+        <p>Point fixe : <strong>$w_1 = 4$</strong>. Ordonnançable ($4 \le 7$).</p>
+
+        <h4>3. Tâche $\tau_3$ (Priorité 3) - L'avalanche</h4>
+        <p>Calcul pour la 1ère instance ($k=1$) :</p>
+        <ul>
+            <li>$w_3^0(1) = 3$</li>
+            <li>$w_3^1(1) = 3 + \left\lceil \frac{3}{4} \right\rceil \times 2 + \left\lceil \frac{3}{7} \right\rceil \times 2 = 3 + 2 + 2 = 7$</li>
+            <li>$w_3^2(1) = 3 + \left\lceil \frac{7}{4} \right\rceil \times 2 + \left\lceil \frac{7}{7} \right\rceil \times 2 = 3 + 4 + 2 = 9$</li>
+            <li>$w_3^3(1) = 3 + \left\lceil \frac{9}{4} \right\rceil \times 2 + \left\lceil \frac{9}{7} \right\rceil \times 2 = 3 + 6 + 4 = 13$</li>
+            <li>$w_3^4(1) = 3 + \left\lceil \frac{13}{4} \right\rceil \times 2 + \left\lceil \frac{13}{7} \right\rceil \times 2 = 3 + 8 + 4 = 15$</li>
+            <li>$w_3^5(1) = 3 + \left\lceil \frac{15}{4} \right\rceil \times 2 + \left\lceil \frac{15}{7} \right\rceil \times 2 = 3 + 8 + 6 = 17$</li>
+            <li>$w_3^6(1) = 3 + \left\lceil \frac{17}{4} \right\rceil \times 2 + \left\lceil \frac{17}{7} \right\rceil \times 2 = 3 + 10 + 6 = 19$</li>
+            <li>$w_3^7(1) = 3 + \left\lceil \frac{19}{4} \right\rceil \times 2 + \left\lceil \frac{19}{7} \right\rceil \times 2 = \mathbf{19}$</li>
+        </ul>
+        
+        <div class="info-box">
+            <h4>Formule de Lehoczky (Débordement)</h4>
+            <p>Le point fixe de la 1ère instance est <strong>19</strong>. Or, $19 > T_3 (14)$. La 2ème instance arrive avant que la 1ère ne finisse ! La "période d'activité" continue.</p>
+        </div>
+
+        <p>Calcul pour la 2ème instance ($k=2$, demande $2 \times C_3 = 6$) :</p>
+        <ul>
+            <li>$w_3^0(2) = 19$ (On repart du dernier point)</li>
+            <li>$w_3^1(2) = 6 + \left\lceil \frac{19}{4} \right\rceil \times 2 + \left\lceil \frac{19}{7} \right\rceil \times 2 = 6 + 10 + 6 = 22$</li>
+            <li>$w_3^2(2) = 6 + \left\lceil \frac{22}{4} \right\rceil \times 2 + \left\lceil \frac{22}{7} \right\rceil \times 2 = 6 + 12 + 8 = 26$</li>
+            <li>$w_3^3(2) = 6 + \left\lceil \frac{26}{4} \right\rceil \times 2 + \left\lceil \frac{26}{7} \right\rceil \times 2 = 6 + 14 + 8 = 28$</li>
+            <li>$w_3^4(2) = 6 + \left\lceil \frac{28}{4} \right\rceil \times 2 + \left\lceil \frac{28}{7} \right\rceil \times 2 = \mathbf{28}$</li>
+        </ul>
+        <p>Fin de l'activité car $28 \le 2 \times T_3$ ($28 \le 28$).</p>
+        <p>Le temps de réponse de cette 2ème instance est : $28 - (1 \times 14) = \mathbf{14}$.</p>
+        
+        <p>Le pire temps de réponse final est le max : $\max(19, 14) = \mathbf{19}$.</p>
+
+        <div class="info-box" style="background-color: #FEF2F2; border-color: #EF4444; color: #991B1B;">
+            <h4>Conclusion Finale</h4>
+            <p>Le pire temps de réponse de $\tau_3$ est <strong>19</strong>. Puisque $19 > D_3 (14)$, <strong>le système S2 N'EST PAS ordonnançable sous RM</strong>. C'est l'exemple type d'une saturation due aux interférences malgré une charge CPU valide ($U=1$).</p>
+        </div>
+    </div>
+</article>
