@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <script src="./section-utils.js" defer></script>
+</head>
+<body>
+
+    <h2>TD 1 — Analyse de pire durée d'exécution (WCET)</h2>
+
+    <!-- ── EN-TÊTE DE L'EXERCICE ── -->
+    <div class="exo-header">
+        <div class="exo-meta">
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+            <span class="exo-points">◎ 20 pts</span>
+            <span class="exo-time">⏱ 1h30–2h</span>
+        </div>
+        <div class="objectifs">
+            <strong>Objectifs</strong>
+            <ul>
+                <li>Comprendre les facteurs qui rendent le WCET difficile à borner</li>
+                <li>Utiliser OTAWA pour produire une borne statique sûre sur un binaire ARM</li>
+                <li>Raisonner sur la borne de boucle d'un algorithme de recherche dichotomique</li>
+                <li>Conduire des mesures dynamiques et expliquer les variations observées</li>
+            </ul>
+        </div>
+        <p class="exo-prereq"><strong>Prérequis :</strong> <em>Architecture processeur</em> · <em>Pipeline et hiérarchie mémoire</em> · <em>Algorithmique — recherche dichotomique</em></p>
+    </div>
+
+    <!-- ── CONTEXTE ── -->
+    <div class="context-block">
+        <h3>Contexte — Pourquoi le temps d'exécution est-il difficile à borner ?</h3>
+        <p>
+            Dans les systèmes temps réel critiques (avionique, automobile, médical), il ne suffit pas de
+            savoir qu'un programme <em>finit généralement vite</em> : il faut garantir qu'il finit <strong>en moins
+            de T unités de temps, dans tous les cas</strong>. C'est ce que l'on appelle le
+            <strong>WCET</strong> (<em>Worst-Case Execution Time</em>).
+        </p>
+        <p>
+            La difficulté vient de la multiplicité des facteurs qui influencent la durée d'exécution :
+        </p>
+        <ul>
+            <li><strong>Les instructions élémentaires</strong> — leur nature et leur nombre.</li>
+            <li><strong>Le processeur et sa fréquence</strong> — la règle "2× plus rapide = 2× plus vite" est vraie sur un microcontrôleur
+                simple, mais totalement fausse sur un microprocesseur moderne à pipeline.</li>
+            <li><strong>L'état interne du pipeline</strong> — un branchement conditionnel peut vider ou conserver le pipeline selon la prédiction du processeur.</li>
+            <li><strong>L'état de la hiérarchie mémoire</strong> — une instruction ou une donnée peut se trouver en
+                cache L1 (1–2 cycles), en RAM (3–10 cycles), ou en mémoire virtuelle sur disque (dizaines de milliers de cycles).</li>
+        </ul>
+
+        <div class="callout-info">
+            <strong>Enjeu :</strong> une analyse de WCET doit produire une borne <em>sûre</em>
+            (jamais optimiste) et la plus <em>précise</em> possible. Une borne trop pessimiste gaspille
+            des ressources système ; une borne trop optimiste met en danger la sûreté.
+        </div>
+    </div>
+
+    <!-- ── RAPPEL COURT : WCET ── -->
+    <button class="hint-btn" data-hint="rappel-wcet" data-label="Rappel — Définitions WCET / BCET" data-close-label="Masquer le rappel" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Rappel — Définitions WCET / BCET</span>
+    </button>
+    <div class="hint" id="rappel-wcet">
+        <p><strong>WCET</strong> (<em>Worst-Case Execution Time</em>) : borne supérieure garantie sur la durée d'exécution d'un programme, pour tout chemin d'exécution et tout état initial du matériel.</p>
+        <p><strong>BCET</strong> (<em>Best-Case Execution Time</em>) : borne inférieure — le cas le plus rapide possible.</p>
+        <p>
+            Une analyse est dite <strong>sûre</strong> si la borne calculée est toujours supérieure ou égale au vrai WCET.
+            Elle est dite <strong>précise</strong> si elle est la plus proche possible du vrai WCET, sans être optimiste.
+        </p>
+    </div>
+
+    <!-- ── RAPPEL LONG : STATIQUE vs DYNAMIQUE ── -->
+    <button class="hint-btn" data-hint="rappel-methodes" data-label="Rappel — Analyse statique vs dynamique" data-close-label="Masquer le rappel" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Rappel — Analyse statique vs dynamique</span>
+    </button>
+    <div class="hint" id="rappel-methodes">
+        <p><strong>Analyse statique :</strong> un outil inspecte le binaire du programme sans l'exécuter. Il construit un modèle du matériel (pipeline, cache, bus) et calcule une borne sûre.</p>
+        <ul>
+            <li><strong>Avantage :</strong> la borne est garantie — jamais optimiste.</li>
+            <li><strong>Inconvénient :</strong> nécessite un modèle précis du matériel ; peut être très pessimiste en présence de caches ou de pipelines complexes.</li>
+            <li><strong>Exemples d'outils :</strong> OTAWA, aiT, RapiTime, Heptane.</li>
+        </ul>
+        <p><strong>Analyse dynamique :</strong> le code est instrumenté avec des mesures d'horloge (logicielle ou matérielle) et exécuté de nombreuses fois.</p>
+        <ul>
+            <li><strong>Avantage :</strong> applicable même sans modèle matériel ; approche probabiliste possible.</li>
+            <li><strong>Inconvénient :</strong> la borne n'est <em>pas sûre</em> — un chemin pire non observé peut exister. Dépend de la couverture du code.</li>
+            <li><strong>Variantes :</strong> WCET probabiliste (distribution cumulative), solutions mixtes avec métriques de couverture.</li>
+        </ul>
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Repère</span></p>
+            <p>Dans la Figure 1 du cours, l'écart entre la "worst-case guarantee" (borne statique) et la "maximal observed execution time" (mesure dynamique) illustre précisément ce pessimisme résiduel de l'analyse statique.</p>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-green">Exemple</span></p>
+            <p>
+                Sur un microcontrôleur 8 bits sans cache ni pipeline, chaque instruction prend exactement
+                N cycles définis dans la datasheet. Le WCET statique est trivial à calculer : il suffit de
+                compter les instructions sur le chemin le plus long et de multiplier par N.
+            </p>
+            <p>
+                Sur un ARM Cortex-A avec cache L1, L2 et prédicteur de branchement, le même calcul
+                peut produire une borne 10 à 100× trop pessimiste si l'on ignore l'état du cache.
+            </p>
+        </div>
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition :</strong> estimer le WCET d'un programme sur un processeur moderne,
+            c'est comme estimer le temps de trajet Paris–Lyon en ignorant si l'autoroute est libre
+            ou embouteillée. La borne "prudente" suppose le pire (embouteillages partout) ;
+            la mesure dynamique observe un trajet réel mais ne garantit rien pour le prochain.</p>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- PARTIE 1 — ANALYSE STATIQUE AVEC OTAWA                    -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+
+    <h3>Partie 1 — Analyse statique avec OTAWA</h3>
+
+    <div class="context-block">
+        <p>
+            <strong>OTAWA</strong> est un framework d'analyse statique de WCET développé à l'IRIT
+            (Institut de Recherche en Informatique de Toulouse). Son principe :
+        </p>
+        <ul>
+            <li>Il <strong>décode le binaire</strong> du programme compilé.</li>
+            <li>Il en construit le <strong>CFG</strong> (<em>Control Flow Graph</em> — graphe de flot de contrôle).</li>
+            <li>Il <strong>abstrait finement le matériel</strong> : pipeline, cache, bus d'accès mémoire.</li>
+            <li>Il combine ces informations pour <strong>borner le WCET</strong> de chaque bloc de base.</li>
+        </ul>
+        <p>
+            Dans ce TD, le programme cible est compilé pour un microcontrôleur
+            <strong>ARM LPC2138 (NXP)</strong>, dont le modèle matériel est déjà disponible dans OTAWA.
+            Le programme étudié implémente une <strong>recherche dichotomique</strong> (<code>binary_search</code>)
+            dans un tableau de 15 éléments.
+        </p>
+
+        <div class="callout-info">
+            <strong>Environnement :</strong> OTAWA est fourni dans une image Docker. Lancer le conteneur
+            avant de commencer les étapes suivantes.
+        </div>
+
+        <p><strong>Sous Linux :</strong></p>
+        <div class="terminal">
+            <code><span class="prompt">$</span> xhost +local:
+<span class="prompt">$</span> docker run -it --rm -e DISPLAY=:0.0 --net=host registry-ia.ensma.fr/svtr /bin/bash</code>
+        </div>
+
+        <p><strong>Sous Windows (WSL2) :</strong></p>
+        <div class="terminal">
+            <code><span class="prompt">$</span> docker run -it --rm \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -e DISPLAY -e WAYLAND_DISPLAY \
+    -e XDG_RUNTIME_DIR -e PULSE_SERVER \
+    --net=host registry-ia.ensma.fr/svtr /bin/bash</code>
+        </div>
+    </div>
+
+    <h4>Étapes guidées — Prise en main d'OTAWA</h4>
+
+    <p>Exécuter les étapes suivantes dans l'ordre, à l'intérieur du conteneur Docker.</p>
+
+    <div class="highlight-box">
+        <p><span class="badge badge-orange">Méthode</span></p>
+        <ul class="steps">
+            <li>Visualiser le source C pour comprendre la structure de la boucle.</li>
+            <li>Compiler en croisé pour ARM — obtenir un binaire <code>.elf</code>.</li>
+            <li>Lancer <code>owcet</code> une première fois — observer l'erreur sur la borne de boucle.</li>
+            <li>Calculer manuellement la borne N, l'injecter dans le fichier <code>.ff</code>.</li>
+            <li>Relancer <code>owcet</code> avec le fichier de flow facts — lire le WCET obtenu.</li>
+            <li>Vérifier avec <code>orange</code> (détection automatique) puis visualiser le CFG.</li>
+            <li>Comparer le WCET avec et sans optimisation <code>-O1</code>.</li>
+        </ul>
+    </div>
+
+    <p><strong>Étape 1 — Visualiser le programme source :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> cd wcet ; cat bs.c</code>
+    </div>
+
+    <p><strong>Étape 2 — Compilation croisée pour ARM :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> arm-linux-gnueabi-gcc -g3 -fno-stack-protector -marm -march=armv4 \
+    -o bs.elf bs.c -nostartfiles -static -T link-flash.ld</code>
+    </div>
+
+    <div class="callout-info">
+        <p><span class="badge badge-blue">Analogie</span></p>
+        <p><strong>Compilation croisée :</strong> on compile sur une machine x86 (votre poste) pour produire
+        du code machine ARM (le microcontrôleur cible). C'est analogue à imprimer un document en
+        français sur une imprimante configurée en japonais — il faut un traducteur intermédiaire
+        qui connaît les deux langages : c'est le rôle de <code>arm-linux-gnueabi-gcc</code>.</p>
+    </div>
+
+    <p><strong>Étape 3 — Premier lancement OTAWA (sans borne de boucle) :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> owcet -s lpc2138 bs.elf
+<span class="comment"># → Erreur : OTAWA ne connaît pas le nombre maximal d'itérations de la boucle</span>
+<span class="comment"># → Il demande une "loop bound" pour binary_search</span></code>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- QUESTION 1                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q1</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>
+            OTAWA signale qu'il manque la borne de boucle (<em>loop bound</em>) de la fonction
+            <code>binary_search</code>. Le tableau possède <strong>15 éléments</strong>.
+            Quelle est la valeur maximale <strong>N</strong> du nombre d'itérations que cette
+            boucle peut effectuer ? Justifiez par le raisonnement algorithmique.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Répondre N = 15 (la taille du tableau). La recherche
+            dichotomique ne parcourt jamais tous les éléments — elle divise l'espace par 2 à chaque
+            itération. Confondre la taille du tableau avec le nombre d'itérations est l'erreur classique.
+        </div>
+
+        <button class="hint-btn" data-hint="q1-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q1-h1">
+            À chaque itération, la recherche dichotomique divise le tableau en deux moitiés et
+            n'explore qu'une seule. Combien de fois peut-on diviser 15 par 2 avant d'obtenir un
+            intervalle de taille ≤ 1 ?
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q1-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q1-h2">
+            La borne de boucle vaut <strong>⌈log₂(n + 1)⌉</strong> pour un tableau de <em>n</em> éléments.
+            Pour n = 15 : log₂(16) = 4. Donc N = 4.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Donnez la valeur de N et justifiez le raisonnement pas à pas…"></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q1</h4>
+
+            <p>La recherche dichotomique sur un tableau de <em>n</em> éléments divise l'espace de recherche par 2 à chaque itération. Le nombre maximal d'itérations est :</p>
+
+            <div class="highlight-box">
+                <p><span class="badge badge-orange">Formule</span></p>
+                <p><strong>N = ⌈log₂(n + 1)⌉</strong></p>
+                <p>Pour n = 15 éléments : ⌈log₂(16)⌉ = ⌈4⌉ = <strong>4 itérations maximum</strong>.</p>
+            </div>
+
+            <p><strong>Raisonnement pas à pas :</strong></p>
+            <ul class="steps">
+                <li>Itération 1 : on cherche dans 15 éléments → on coupe en [7] et [7]. L'élément peut être dans n'importe quelle moitié.</li>
+                <li>Itération 2 : on cherche dans 7 éléments → on coupe en [3] et [3].</li>
+                <li>Itération 3 : on cherche dans 3 éléments → on coupe en [1] et [1].</li>
+                <li>Itération 4 : on cherche dans 1 élément → on le compare directement. Fin.</li>
+            </ul>
+
+            <p>Donc <strong>N = 4</strong>. C'est la valeur à injecter dans le fichier <code>bs.ff</code> à la place du symbole <code>?</code>.</p>
+
+            <p class="inline-note">Si on avait posé N = 15, OTAWA aurait calculé un WCET 3× à 4× trop pessimiste, rendant le résultat inutilisable pour un dimensionnement système.</p>
+        </div>
+    </div>
+
+
+    <!-- ── SUITE ÉTAPES OTAWA ── -->
+
+    <p><strong>Étape 4 — Générer et éditer le fichier de flow facts :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> mkff bs.elf > bs.ff
+<span class="comment"># Ouvrir bs.ff avec vim, remplacer "?" par 4</span>
+<span class="prompt">$</span> vim bs.ff
+<span class="comment"># Dans vim : i (mode édition) → modifier → Échap → :wq (sauvegarder et quitter)</span></code>
+    </div>
+
+    <p><strong>Étape 5 — Relancer owcet avec les flow facts — lire le WCET :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> owcet -s lpc2138 bs.elf -f bs.ff
+<span class="comment"># → OTAWA affiche maintenant le WCET en cycles pour le microcontrôleur LPC2138</span></code>
+    </div>
+
+    <p><strong>Étape 6 — Vérification automatique avec orange :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> orange bs.c main -o bs.ffx
+<span class="comment"># → orange détermine automatiquement la borne de boucle par analyse statique</span>
+<span class="comment"># → Comparer la valeur dans bs.ffx avec votre N = 4</span></code>
+    </div>
+
+    <div class="callout-info">
+        <strong>Rôle d'orange :</strong> <code>orange</code> est un outil d'OTAWA qui dérive automatiquement
+        les bornes de boucle (<em>loop bounds</em>) par analyse du code source C. Il évite la saisie
+        manuelle dans les cas simples — mais reste limité aux boucles dont la borne est analytiquement
+        dérivable.
+    </div>
+
+    <p><strong>Étape 7 — Générer les statistiques d'annotation du CFG :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> owcet -s lpc2138 bs.elf --stats -S
+<span class="comment"># → Produit des fichiers de statistiques utilisés par l'interface graphique</span></code>
+    </div>
+
+    <p><strong>Étape 8 — Visualiser le CFG annoté :</strong></p>
+    <div class="terminal">
+        <code><span class="prompt">$</span> obviews.py bs main
+<span class="comment"># → Interface graphique : chaque bloc de base est annoté avec son coût en cycles</span>
+<span class="comment"># → Le chemin WCET est mis en évidence</span></code>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- QUESTION 2                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q2</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>
+            <strong>Étape 9 :</strong> recompilez le programme avec l'option <code>-O1</code>, relancez
+            <code>owcet</code> (étape 7), et observez les différences de WCET.
+        </p>
+        <pre><code>arm-linux-gnueabi-gcc -g3 -O1 -fno-stack-protector -marm -march=armv4 \
+    -o bs.elf bs.c -nostartfiles -static -T link-flash.ld
+owcet -s lpc2138 bs.elf --stats -S</code></pre>
+        <p>
+            Comparez le WCET obtenu avec <code>-O1</code> par rapport au WCET sans optimisation.
+            Expliquez pourquoi le WCET change, et dans quel sens vous attendez-vous à ce qu'il évolue.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Penser que l'optimisation augmente toujours le WCET.
+            En réalité, <code>-O1</code> supprime des instructions redondantes, réduit les accès mémoire
+            (utilisation des registres), et simplifie les branchements — ce qui réduit le WCET en général.
+            Mais l'optimisation peut aussi <em>compliquer</em> l'analyse statique (réordonnancement
+            d'instructions, inlining de fonctions).
+        </div>
+
+        <button class="hint-btn" data-hint="q2-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q2-h1">
+            L'optimisation <code>-O1</code> réduit le nombre d'instructions machine en éliminant
+            les opérations inutiles (chargements/stores redondants, variables temporaires inutiles).
+            Moins d'instructions = moins de cycles dans le pire cas.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q2-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q2-h2">
+            Observez dans le CFG annoté (obviews.py) le nombre de blocs de base et le coût en cycles
+            de chaque bloc. Le nombre de blocs peut diminuer (inlining, suppression de code mort),
+            et le coût de chaque bloc peut changer (meilleure utilisation des registres).
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Indiquez les deux valeurs de WCET (sans / avec -O1), puis expliquez les différences observées dans le CFG…"></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q2</h4>
+
+            <p>L'optimisation <code>-O1</code> réduit généralement le WCET pour plusieurs raisons :</p>
+
+            <ul class="steps">
+                <li><strong>Élimination des stores/loads redondants :</strong> sans optimisation, le compilateur "naïf" sauvegarde chaque variable en mémoire après calcul et la recharge avant réutilisation. Avec <code>-O1</code>, les variables restent dans les registres ARM.</li>
+                <li><strong>Suppression du code mort :</strong> les branches non atteignables et les calculs inutilisés disparaissent, réduisant la taille du CFG.</li>
+                <li><strong>Simplification des branchements :</strong> certaines structures conditionnelles sont fusionnées ou réordonnées pour réduire le nombre de sauts.</li>
+            </ul>
+
+            <div class="two-col">
+                <div class="highlight-box">
+                    <strong>Effet sur le WCET</strong><br>
+                    Le WCET avec <code>-O1</code> est typiquement
+                    <strong>inférieur</strong> au WCET sans optimisation, car le chemin le plus
+                    long contient moins d'instructions machine.
+                </div>
+                <div class="highlight-box">
+                    <strong>Effet sur l'analyse statique</strong><br>
+                    L'inlining de fonctions peut <em>augmenter</em> localement la complexité du CFG,
+                    mais réduit le coût des appels de fonctions. Le bilan global reste favorable.
+                </div>
+            </div>
+
+            <p class="inline-note">À des niveaux d'optimisation plus élevés (<code>-O2</code>, <code>-O3</code>), l'analyse statique devient beaucoup plus difficile : le pipeline est davantage sollicité, les spéculations de branchement sont plus nombreuses, et les bornes statiques peuvent se dégrader.</p>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- PARTIE 2 — ANALYSE DYNAMIQUE                              -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+
+    <h3>Partie 2 — Analyse dynamique</h3>
+
+    <div class="context-block">
+        <p>
+            Dans cette partie, on suppose que le programme <code>bs.c</code> doit s'exécuter sur
+            <strong>le CPU de votre propre machine</strong> (x86-64 ou ARM). Le modèle de votre CPU
+            n'est pas disponible dans un outil de WCET statique — on va donc <strong>instrumenter
+            le code avec des mesures d'horloge</strong> et exécuter le programme de nombreuses fois.
+        </p>
+        <p>
+            Le programme mesure le temps d'exécution de <code>binary_search</code> en utilisant
+            un compteur de cycles matériel (<code>clock()</code> ou <code>RDTSC</code>) et affiche la
+            durée observée.
+        </p>
+
+        <div class="callout-info">
+            <strong>Rappel :</strong> compiler pour votre machine locale (pas de compilation croisée) :
+        </div>
+        <div class="terminal">
+            <code><span class="prompt">$</span> gcc -O0 -o bs bs.c
+<span class="prompt">$</span> ./bs
+<span class="comment"># Lancer plusieurs fois et noter les durées observées</span></code>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- QUESTION 3                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>
+            Compilez et lancez le programme plusieurs fois sans le modifier. Vous observez que
+            la durée d'exécution mesurée <strong>varie d'une exécution à l'autre</strong>, parfois
+            significativement. Expliquez les causes possibles de ces variations.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Conclure que les variations sont dues à un "bug"
+            ou à de l'aléatoire pur. Ces variations sont <em>déterministes</em> mais dépendent
+            d'un état matériel qui change entre deux exécutions (cache, pipeline, OS).
+            Il n'y a pas de hasard — il y a de l'<em>imprévisibilité</em>.
+        </div>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            Pensez à l'état de la mémoire cache entre deux exécutions. Lors de la première exécution,
+            les instructions et données de <code>binary_search</code> ne sont pas encore en cache
+            (cold start). Lors des suivantes, elles peuvent être déjà présentes (warm cache).
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q3-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q3-h2">
+            En plus du cache, pensez à : l'ordonnancement du système d'exploitation (un autre processus
+            peut préempter votre programme), les interruptions matérielles, l'état du prédicteur de
+            branchement, et les effets de la mémoire virtuelle (page fault possible à la première exécution).
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Listez et expliquez les causes possibles des variations de durée d'exécution…"></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q3</h4>
+
+            <p>Les principales causes de variation sont :</p>
+
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>Cause</th><th>Mécanisme</th><th>Amplitude typique</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>État du cache L1/L2</strong></td>
+                            <td>Instructions et données absentes au premier appel (cold miss), présentes ensuite (warm hit)</td>
+                            <td>×2 à ×5 sur la durée</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Préemption OS</strong></td>
+                            <td>Le scheduler peut suspendre le processus entre deux mesures d'horloge</td>
+                            <td>Quelques µs à ms</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Interruptions matérielles</strong></td>
+                            <td>Horloge, réseau, entrées/sorties — interrompent le pipeline au moment de la mesure</td>
+                            <td>Sub-µs à µs</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Prédicteur de branchement</strong></td>
+                            <td>La prédiction de branchement s'améliore après quelques exécutions (branch history)</td>
+                            <td>Quelques cycles</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Page fault (première exécution)</strong></td>
+                            <td>La mémoire virtuelle peut provoquer un chargement depuis le disque au premier accès</td>
+                            <td>Plusieurs ms (rare)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout-info">
+                <strong>Conséquence pour l'analyse dynamique :</strong> ces variations montrent que
+                les mesures isolées ne sont pas fiables. Il faut collecter un grand nombre d'exécutions
+                et appliquer une approche statistique (WCET probabiliste) pour tirer une conclusion sûre.
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- QUESTION 4                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>
+            Modifiez la valeur de l'indice de fin de la boucle <code>for</code> principale en la
+            passant successivement à <strong>10</strong>, <strong>100</strong>, puis <strong>1 000</strong>.
+            À chaque fois, calculez la <strong>durée moyenne par appel</strong> à <code>binary_search</code>.
+        </p>
+        <p>
+            Vous observez que cette moyenne <strong>diminue</strong> lorsque le nombre d'itérations
+            augmente. Expliquez précisément ce phénomène.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Penser que la moyenne diminue parce que la fonction
+            "s'accélère" avec le temps, comme si elle "apprenait". Ce n'est pas la fonction qui change —
+            c'est la proportion d'exécutions à <em>cache froid</em> qui diminue à mesure que N augmente.
+        </div>
+
+        <button class="hint-btn" data-hint="q4-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q4-h1">
+            La première exécution de <code>binary_search</code> subit un cache froid (instructions et
+            données chargées depuis la RAM). Les exécutions suivantes profitent d'un cache chaud.
+            Quel est l'impact de cet écart sur la <em>moyenne</em> lorsque N est petit vs. grand ?
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q4-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q4-h2">
+            Avec N = 10 : 1 exécution lente (cold) + 9 rapides (warm). La moyenne est tirée vers le haut
+            par l'exécution froide (poids 10%).<br>
+            Avec N = 1 000 : 1 exécution lente + 999 rapides. La moyenne est presque indistinguable du
+            cas warm (poids 0,1%). La moyenne se rapproche du <em>cas moyen en cache chaud</em>.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Expliquez le phénomène d'amortissement du cache, en reliant la formule de la moyenne aux contributions cold/warm…"></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q4</h4>
+
+            <p>Ce phénomène s'appelle <strong>amortissement du coût de démarrage (warm-up)</strong>.</p>
+
+            <div class="highlight-box">
+                <p><span class="badge badge-orange">Modèle simplifié</span></p>
+                <p>Soit <em>T<sub>cold</sub></em> la durée de la 1ère exécution (cache froid) et <em>T<sub>warm</sub></em> la durée des suivantes (cache chaud).</p>
+                <p>La durée totale de N appels vaut : <strong>T<sub>cold</sub> + (N − 1) × T<sub>warm</sub></strong></p>
+                <p>La moyenne par appel vaut : <strong>T<sub>cold</sub>/N + T<sub>warm</sub> × (N−1)/N</strong></p>
+                <p>Quand N → ∞, la moyenne tend vers <strong>T<sub>warm</sub></strong> — le coût du cache froid devient négligeable.</p>
+            </div>
+
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>N (appels)</th><th>Poids de T<sub>cold</sub></th><th>Moyenne observée</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>10</td><td>10 %</td><td>T<sub>warm</sub> + 0,1 × (T<sub>cold</sub> − T<sub>warm</sub>)</td></tr>
+                        <tr><td>100</td><td>1 %</td><td>T<sub>warm</sub> + 0,01 × (T<sub>cold</sub> − T<sub>warm</sub>)</td></tr>
+                        <tr><td>1 000</td><td>0,1 %</td><td>≈ T<sub>warm</sub></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout-info">
+                <strong>Leçon pour la mesure dynamique :</strong> mesurer la durée sur un seul appel
+                donne T<sub>cold</sub> — valeur anormalement élevée, non représentative du régime
+                permanent. Pour obtenir T<sub>warm</sub>, il faut "chauffer" le cache avec quelques
+                appels préalables non mesurés (<em>warm-up phase</em>), ou mesurer un grand nombre
+                d'appels et calculer la moyenne en excluant le premier.
+            </div>
+
+            <p class="inline-note">Ce phénomène est fondamental dans les benchmarks de performances : tout benchmark sérieux inclut une phase de warm-up avant les mesures, précisément pour éviter de biaiser la moyenne avec les coûts de démarrage.</p>
+        </div>
+    </div>
+
+
+    <!-- ── BARÈME ── -->
+    <div class="bareme">
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q1 — Borne de boucle binary_search</span>
+        <span class="bareme-desc">2 pts valeur N correcte · 3 pts raisonnement log₂ justifié étape par étape</span>
+
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q2 — Impact de l'optimisation -O1</span>
+        <span class="bareme-desc">2 pts observation WCET avant/après · 3 pts explication mécanismes (registres, code mort, branchements)</span>
+
+        <span class="bareme-pts">4</span>
+        <span class="bareme-label">Q3 — Variations dynamiques</span>
+        <span class="bareme-desc">1 pt par cause correctement expliquée (cache, OS, interruptions, prédicteur) — 4 pts max</span>
+
+        <span class="bareme-pts">6</span>
+        <span class="bareme-label">Q4 — Effet d'amortissement du cache</span>
+        <span class="bareme-desc">2 pts identification du warm-up · 2 pts modèle T_cold / T_warm · 2 pts interprétation de la limite N→∞</span>
+
+        <div class="bareme-total">Total : <strong>20 pts</strong></div>
+    </div>
+
+
+    <!-- ── POUR ALLER PLUS LOIN ── -->
+    <div class="pour-aller-plus-loin">
+        <strong>Pour aller plus loin</strong>
+        <ul>
+            <li>Examinez le fichier <code>bs.ff</code> généré par <code>mkff</code> : quelle est la syntaxe d'une annotation de borne de boucle ? Comment OTAWA l'associe-t-il au bon endroit dans le binaire ?</li>
+            <li>Comparez le CFG de <code>binary_search</code> avec et sans optimisation dans <code>obviews.py</code>. Comptez le nombre de blocs de base et les cycles annotés sur le chemin WCET.</li>
+            <li>Que se passe-t-il si on déclare une borne de boucle incorrecte (par exemple N = 3 au lieu de 4) ? OTAWA produit-il un WCET optimiste ou simplement erroné ?</li>
+            <li>Recherchez la notion de <strong>WCET probabiliste</strong> (pWCET) : comment une distribution cumulative de mesures dynamiques peut-elle garantir une borne avec un niveau de confiance donné (ex. 10⁻⁹ par heure) ?</li>
+            <li>Comparez OTAWA avec <strong>aiT</strong> (AbsInt) : quelles différences de modélisation du pipeline et du cache justifient des résultats différents sur le même binaire ?</li>
+        </ul>
+        <p class="source">Wilhelm et al., « The worst-case execution-time problem — overview of methods and survey of tools », <em>ACM Trans. Embed. Comput. Syst.</em>, vol. 7, n° 3, p. 36:1–36:53, mai 2008. doi: 10.1145/1347375.1347389</p>
+    </div>
+
+</body>
+</html>

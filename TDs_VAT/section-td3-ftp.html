@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <script src="./section-utils.js" defer></script>
+</head>
+<body>
+    <h2>TD 3 — Optimalite en FTP</h2>
+
+    <div class="exo-header">
+        <div class="exo-meta">
+            <span class="diff-badge diff-moyen">Intermediaire</span>
+            <span class="exo-points">◎ 24 pts</span>
+            <span class="exo-time">⏱ 1h30-2h</span>
+        </div>
+        <div class="objectifs">
+            <strong>Objectifs</strong>
+            <ul>
+                <li>Distinguer optimalite d'une affectation de priorites et ordonnancabilite d'un systeme</li>
+                <li>Appliquer correctement les tests polynomiaux de Liu &amp; Layland et de la borne hyperbolique</li>
+                <li>Raisonner avec RM, DM et OPA selon les hypotheses de validite</li>
+                <li>Interpreter un echec de test suffisant sans conclure trop vite a la non-ordonnancabilite</li>
+            </ul>
+        </div>
+        <p class="exo-prereq"><strong>Prerequis :</strong> <em>Ordonnancement a priorites fixes</em> - <em>RM/DM</em> - <em>Simulation de systemes temps reel</em></p>
+    </div>
+
+    <div class="context-block">
+        <h3>Contexte - Pourquoi des tests polynomiaux ?</h3>
+        <p>
+            En theorie, la simulation peut etre une condition necessaire et suffisante d'ordonnancabilite
+            pour des taches independantes en monoprocesseur. En pratique, elle devient vite couteuse
+            (horizon de simulation potentiellement tres grand) et perd ses proprietes en presence
+            de facteurs comme des sections non preemptibles, des exclusions mutuelles ou des precedences.
+        </p>
+        <p>
+            Le TD explore donc des tests polynomiaux <strong>suffisants</strong> (L&amp;L, borne hyperbolique),
+            des affectations optimales selon le contexte (RM, DM), puis une recherche systematique de priorites
+            avec <strong>OPA</strong>, lorsque RM/DM ne sont plus garanties optimales.
+        </p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Concept</th><th>Ce qu'il garantit</th><th>Limite a retenir</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>L&amp;L</strong></td><td>Condition suffisante d'ordonnancabilite</td><td>Peut rejeter des systemes pourtant ordonnancables</td></tr>
+                    <tr><td><strong>Borne hyperbolique</strong></td><td>Condition suffisante plus puissante que L&amp;L</td><td>Reste conservative</td></tr>
+                    <tr><td><strong>RM</strong></td><td>Affectation optimale si <code>D_i = T_i</code> et hypotheses classiques</td><td>Perd l'optimalite si hypothese cle manquante</td></tr>
+                    <tr><td><strong>DM</strong></td><td>Affectation optimale si <code>D_i &lt;= T_i</code> et hypotheses classiques</td><td>Meme limite : depend du cadre d'application</td></tr>
+                    <tr><td><strong>OPA</strong></td><td>Trouve une affectation FTP ordonnancable si conditions satisfaites</td><td>Dependant du test utilise pour valider chaque tache</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <button class="hint-btn" data-hint="rappel-formules" data-label="Rappel de cours" data-close-label="Masquer le rappel" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Rappel de cours</span>
+    </button>
+    <div class="hint" id="rappel-formules">
+        <p><strong>Charge processeur :</strong> <code>U = Somme(C_i / T_i)</code>.</p>
+        <p><strong>Borne L&amp;L (n taches) :</strong> <code>U &lt;= n(2^(1/n) - 1)</code>.</p>
+        <p><strong>Borne hyperbolique :</strong> <code>Produit(1 + U_i) &lt;= 2</code>.</p>
+        <p><strong>Cas contraint <code>D_i &lt;= T_i</code> :</strong> on peut remplacer <code>U_i</code> par la densite <code>C_i / D_i</code> pour ces tests, au prix d'un pessimisme accru.</p>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-green">Exemple</span></p>
+            <p>
+                Un systeme peut echouer a L&amp;L et rester ordonnancable : cela signifie seulement
+                que le test n'a pas pu <em>prouver</em> l'ordonnancabilite, pas qu'il a prouve l'echec.
+            </p>
+        </div>
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition :</strong> un test suffisant ressemble a un detecteur de metal trop strict a l'entree d'un examen :
+            s'il vous laisse passer, c'est bon ; s'il sonne, vous n'etes pas forcement en faute.</p>
+        </div>
+    </div>
+
+    <h3>Exercice 1 - RM, L&amp;L et borne hyperbolique</h3>
+
+    <div class="context-block">
+        <p>Systeme de taches independantes, periodiques, ordonnance en ligne par priorites fixes sur un processeur :</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tache</th><th>Date de reveil r_i</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>tau1</strong></td><td>0</td><td>8</td><td>30</td><td>30</td></tr>
+                    <tr><td><strong>tau2</strong></td><td>0</td><td>6</td><td>20</td><td>20</td></tr>
+                    <tr><td><strong>tau3</strong></td><td>0</td><td>4</td><td>15</td><td>15</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q1</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+
+        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur <code>U</code> du systeme et conclure.</div>
+        <div class="sub-question"><strong>b)</strong> RM donne-t-il une affectation de priorites fixes optimale ici ?</div>
+        <div class="sub-question"><strong>c)</strong> Appliquer les tests L&amp;L et hyperbolique, puis conclure.</div>
+        <div class="sub-question"><strong>d)</strong> En comparant avec une simulation, que doit-on retenir sur la portee des tests ?</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> conclure "non ordonnancable" des que L&amp;L echoue.
+            L&amp;L et la borne hyperbolique sont des conditions suffisantes d'ordonnancabilite,
+            pas des conditions necessaires.
+        </div>
+
+        <button class="hint-btn" data-hint="q1-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q1-h1">
+            Calculer d'abord <code>U = 8/30 + 6/20 + 4/15</code>, puis comparer a
+            <code>3(2^(1/3)-1)</code> pour L&amp;L.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q1-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q1-h2">
+            Pour la borne hyperbolique : verifier <code>(1+8/30)(1+6/20)(1+4/15) &lt;= 2</code>.
+            Pensez ensuite a distinguer "test qui ne prouve pas" et "simulation qui contre-exemple".
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Repondez aux points a), b), c), d) avec calculs intermediaires..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution - Q1</h4>
+
+            <p><strong>a) Charge :</strong></p>
+            <pre><code>U = 8/30 + 6/20 + 4/15
+  = 0.2667 + 0.3000 + 0.2667
+  = 0.8334 (approx.)</code></pre>
+
+            <p><strong>b) Optimalite RM :</strong> oui, car le cadre satisfait les hypotheses usuelles
+            (taches independantes preemptibles, monoprocesseur, reveils simultanes, taches periodiques, <code>D_i = T_i</code>).</p>
+
+            <p><strong>c) Tests polynomiaux :</strong></p>
+            <ul class="steps">
+                <li>L&amp;L pour <code>n = 3</code> : <code>U_b = 3(2^(1/3)-1) = 0.7798</code>. Comme <code>0.8334 &gt; 0.7798</code>, test non valide.</li>
+                <li>Hyperbolique : <code>(1+0.2667)(1+0.3000)(1+0.2667) = 2.0862 &gt; 2</code>, test non valide.</li>
+            </ul>
+
+            <p><strong>d) Conclusion avec simulation :</strong> une simulation peut montrer que le systeme est ordonnancable
+            malgre l'echec des bornes. A retenir : echec d'un test suffisant != preuve de non-ordonnancabilite.</p>
+
+            <div class="callout-info">
+                <strong>Message cle :</strong> L&amp;L et hyperbolique servent a valider vite des cas "faciles".
+                Ils ne remplacent pas une analyse plus fine lorsque la charge est elevee.
+            </div>
+        </div>
+    </div>
+
+    <h3>Exercice 2 - Taches differees et portee des tests</h3>
+
+    <div class="context-block">
+        <p>Systeme de taches differees, independantes et periodiques :</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tache</th><th>Date de reveil r_i</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>tau1</strong></td><td>8</td><td>8.05</td><td>30</td><td>30</td></tr>
+                    <tr><td><strong>tau2</strong></td><td>4</td><td>4.5</td><td>20</td><td>20</td></tr>
+                    <tr><td><strong>tau3</strong></td><td>0</td><td>4.3</td><td>15</td><td>15</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q2</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermediaire</span>
+        </div>
+
+        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur <code>U</code> et conclure.</div>
+        <div class="sub-question"><strong>b)</strong> RM est-il garanti optimal dans ce contexte ?</div>
+        <div class="sub-question"><strong>c)</strong> Peut-on tout de meme appliquer L&amp;L et hyperbolique ? Si oui, conclure.</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> confondre "RM n'est plus garanti optimal" et
+            "les tests n'ont plus aucun sens". La bonne posture est : utiliser les tests comme filtres
+            suffisants, puis completer avec une verification plus fine si necessaire.
+        </div>
+
+        <button class="hint-btn" data-hint="q2-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q2-h1">
+            <code>U = 8.05/30 + 4.5/20 + 4.3/15 = 0.78</code>.
+            Comparez ce resultat a la borne L&amp;L pour <code>n=3</code>.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q2-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q2-h2">
+            Hyperbolique : <code>(1+8.05/30)(1+4.5/20)(1+4.3/15)</code> est tres proche de 2.
+            C'est un bon exemple ou hyperbolique passe alors que L&amp;L echoue.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Detaillez le calcul de U, la discussion sur RM et les deux tests..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution - Q2</h4>
+
+            <p><strong>a) Charge :</strong></p>
+            <pre><code>U = 8.05/30 + 4.5/20 + 4.3/15
+  = 0.2683 + 0.2250 + 0.2867
+  = 0.7800</code></pre>
+
+            <p><strong>b) RM optimal ?</strong> pas garanti, car les reveils sont differes (pas d'instant critique synchrone explicite dans l'enonce).</p>
+
+            <p><strong>c) Application des bornes :</strong></p>
+            <ul class="steps">
+                <li>L&amp;L : <code>0.7800 &gt; 0.7798</code> - echec (de peu).</li>
+                <li>Hyperbolique : <code>(1+0.2683)(1+0.2250)(1+0.2867) = 1.9998 &lt;= 2</code> - validation.</li>
+            </ul>
+
+            <p class="inline-note">La borne hyperbolique est bien strictement plus puissante que L&amp;L : elle valide ici un systeme que L&amp;L ne valide pas.</p>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-green">Exemple concret</span></p>
+            <p>Deux tests partent des memes <code>U_i</code>, mais pas de la meme geometrie mathematique : somme pour L&amp;L, produit pour hyperbolique.</p>
+            <p>Proche de la frontiere, le test produit capture mieux certains equilibres entre taches.</p>
+        </div>
+        <div class="highlight-box">
+            <p><span class="badge badge-red">Contre-exemple classique</span></p>
+            <p>Dire "L&amp;L echoue donc il faut augmenter le CPU" peut conduire a surdimensionner le systeme alors qu'une analyse plus fine ou hyperbolique suffit.</p>
+        </div>
+    </div>
+
+    <h3>Exercice 3 - DM et densites</h3>
+
+    <div class="context-block">
+        <p>Systeme de taches sporadiques independantes :</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tache</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>tau1</strong></td><td>4</td><td>16</td><td>16</td></tr>
+                    <tr><td><strong>tau2</strong></td><td>3</td><td>7</td><td>8</td></tr>
+                    <tr><td><strong>tau3</strong></td><td>4</td><td>6</td><td>12</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">7 pts</span>
+            <span class="diff-badge diff-avance">Avance</span>
+        </div>
+
+        <div class="sub-question"><strong>a)</strong> Quelle affectation de priorites fixes est optimale dans ce cadre ?</div>
+        <div class="sub-question"><strong>b)</strong> Appliquer L&amp;L et hyperbolique en considerant la densite <code>C_i / D_i</code>.</div>
+        <div class="sub-question"><strong>c)</strong> Tracer une simulation avec cette affectation et conclure.</div>
+        <div class="sub-question"><strong>d)</strong> Existe-t-il une affectation FTP qui ordonnance fiablement ce systeme ?</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> croire que "DM optimal" implique "DM reussit".
+            DM optimal signifie : si une affectation FTP peut reussir, DM reussit aussi. Donc si DM echoue,
+            aucune autre affectation FTP ne peut sauver le systeme.
+        </div>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            Les delais sont contraints (<code>D_i &lt;= T_i</code>) : DM classe par delai croissant
+            (<code>tau3</code>, <code>tau2</code>, <code>tau1</code>).
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q3-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q3-h2">
+            Densites : <code>4/16 = 0.25</code>, <code>3/7 = 0.4286</code>, <code>4/6 = 0.6667</code>.
+            Vous devriez trouver un echec net des deux tests et une violation de delai en simulation.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Detaillez a), b), c), d) en distinguant bien tests suffisants et optimalite FTP..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution - Q3</h4>
+
+            <p><strong>a) Affectation optimale :</strong> <strong>DM</strong>, car taches sporadiques, independantes, preemptibles,
+            monoprocesseur, et <code>D_i &lt;= T_i</code>.</p>
+
+            <p><strong>b) Tests avec densites :</strong></p>
+            <pre><code>lambda1 = 4/16 = 0.25
+lambda2 = 3/7  = 0.4286
+lambda3 = 4/6  = 0.6667</code></pre>
+            <ul class="steps">
+                <li>L&amp;L : <code>0.25 + 0.4286 + 0.6667 = 1.3453 &gt; 0.7798</code> - echec.</li>
+                <li>Hyperbolique : <code>(1+0.25)(1+0.4286)(1+0.6667) = 2.9763 &gt; 2</code> - echec.</li>
+            </ul>
+
+            <p><strong>c) Simulation sous DM (tau3 &gt; tau2 &gt; tau1) :</strong>
+            la premiere instance de <code>tau1</code> ne termine pas avant son delai <code>t=16</code>, donc systeme non ordonnancable.</p>
+
+            <p><strong>d) Existence d'une affectation FTP fiable :</strong> non. DM etant optimale dans ce contexte,
+            son echec implique qu'aucune autre affectation de priorites fixes aux taches ne peut ordonnancer fiablement ce systeme.</p>
+        </div>
+    </div>
+
+    <h3>Exercice 4 - OPA (Audsley) et complexite</h3>
+
+    <div class="context-block">
+        <p>
+            Quand RM/DM perdent leur optimalite (ex. offsets, contraintes supplementaires, <code>D_i &gt; T_i</code>),
+            on peut chercher une affectation de priorites via <strong>OPA</strong>, a condition que le test
+            de faisabilite respecte les conditions de monotonicite utilisees par Audsley.
+        </p>
+
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Methode OPA en une phrase</span></p>
+            <p>
+                On affecte d'abord la <em>plus basse priorite</em> a une tache qui reste faisable a ce niveau,
+                on la retire, puis on recommence jusqu'a epuisement des taches ou blocage.
+            </p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-avance">Avance</span>
+        </div>
+
+        <div class="sub-question"><strong>a)</strong> Quelle est la complexite d'OPA si le test de faisabilite d'une tache est en <code>O(1)</code> ?</div>
+        <div class="sub-question"><strong>b)</strong> Pour 25 taches, combien de tests de faisabilite au maximum ?</div>
+        <div class="sub-question"><strong>c)</strong> Si le test choisi est la simulation et que les taches sont non preemptibles, OPA est-il applicable comme preuve ?</div>
+        <div class="sub-question"><strong>d)</strong> Pour le systeme ci-dessous, DM est-il optimal ? OPA est-il applicable avec simulation ? Le systeme est-il ordonnancable en FTP ?</div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tache</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>tau1</strong></td><td>4</td><td>16</td><td>16</td></tr>
+                    <tr><td><strong>tau2</strong></td><td>2</td><td>9</td><td>8</td></tr>
+                    <tr><td><strong>tau3</strong></td><td>5</td><td>13</td><td>12</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> utiliser OPA mecaniquement sans verifier que le test local choisi
+            (ici la simulation) conserve les hypotheses de validite du cadre.
+        </div>
+
+        <button class="hint-btn" data-hint="q4-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q4-h1">
+            Le nombre maximal de tests OPA suit <code>n + (n-1) + ... + 1</code>.
+            Pensez formule de somme arithmetique.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q4-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q4-h2">
+            Pour le systeme de la question d), testez d'abord DM (<code>tau2 &gt; tau3 &gt; tau1</code>)
+            via un calcul de temps de reponse de base : si DM echoue et qu'il est optimal,
+            aucune affectation FTP ne pourra reussir.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Repondez aux points a), b), c), d) avec justification de validite des hypotheses..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution - Q4</h4>
+
+            <p><strong>a) Complexite :</strong></p>
+            <pre><code>N_max_tests = n + (n-1) + ... + 1 = n(n+1)/2
+=> complexite O(n^2) si un test unitaire est O(1).</code></pre>
+
+            <p><strong>b) Pour n = 25 :</strong></p>
+            <pre><code>25 x 26 / 2 = 325 tests au maximum.</code></pre>
+
+            <p><strong>c) Simulation + non preemptif :</strong> non pour une preuve generale,
+            car la simulation perd sa viabilite comme condition necessaire et suffisante dans ce cadre.
+            Elle peut fournir des contre-exemples mais pas valider de maniere fiable tous les cas.</p>
+
+            <p><strong>d) Systeme (4,16,16), (2,9,8), (5,13,12) :</strong></p>
+            <ul class="steps">
+                <li>DM est optimal dans ce cadre (sporadique, independant, preemptible, monoprocesseur, <code>D_i &lt;= T_i</code>).</li>
+                <li>Simulation utilisable dans ce cadre preemptif independant pour tester des affectations.</li>
+                <li>DM echoue (par exemple la tache la moins prioritaire depasse son delai en analyse de temps de reponse).</li>
+                <li>Comme DM est optimal, aucune affectation FTP ne peut ordonnancer fiablement ce systeme.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="bareme">
+        <div class="bareme-col">
+            <h4>Q1 - 6 pts</h4>
+            <ul>
+                <li>Calcul de U exact (2 pts)</li>
+                <li>Conditions d'optimalite RM (1 pt)</li>
+                <li>Tests L&amp;L/hyper correctement interpretes (2 pts)</li>
+                <li>Conclusion sur la nature "suffisante" (1 pt)</li>
+            </ul>
+        </div>
+        <div class="bareme-col">
+            <h4>Q2 - 5 pts</h4>
+            <ul>
+                <li>Charge correcte (1 pt)</li>
+                <li>Discussion RM et offsets (1 pt)</li>
+                <li>Application L&amp;L (1 pt)</li>
+                <li>Application hyperbolique (1 pt)</li>
+                <li>Conclusion nuancee (1 pt)</li>
+            </ul>
+        </div>
+        <div class="bareme-col">
+            <h4>Q3 + Q4 - 13 pts</h4>
+            <ul>
+                <li>DM/densites/simulation et conclusion FTP (7 pts)</li>
+                <li>Complexite OPA et cas n=25 (3 pts)</li>
+                <li>Validite OPA + simulation selon le contexte (3 pts)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="pour-aller-plus-loin">
+        <h3>Pour aller plus loin</h3>
+        <ul>
+            <li>Comparer ces resultats avec une analyse de temps de reponse (RTA) pour chaque affectation de priorites candidate.</li>
+            <li>Tester la sensibilite des conclusions en faisant varier une seule execution critique (<code>C2</code> ou <code>C3</code>) de +5%.</li>
+            <li>Observer dans quels cas OPA retrouve automatiquement une affectation equivalente a DM.</li>
+        </ul>
+    </div>
+</body>
+</html>
