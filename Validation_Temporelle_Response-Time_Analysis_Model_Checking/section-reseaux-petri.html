@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+    <h2>Réseaux de Petri classiques</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>Définition formelle</strong> — Un RdP est un triplet $N=(P,T,W)$ : places, transitions, fonction de valuation. C'est un graphe bipartite avec un marquage initial $M_0$</li>
+            <li><strong>Comportement</strong> — Une transition est franchissable si chaque place en entrée contient assez de jetons. Le franchissement consomme et produit des jetons</li>
+            <li><strong>Propriétés</strong> — Vivacité (pseudo, quasi, pleine), bornage, accessibilité, état d'accueil</li>
+            <li><strong>Analyse</strong> — Graphe des marquages (cas borné) et arbre/graphe de couverture (cas non borné, avec $\omega$)</li>
+            <li><strong>Extensions</strong> — Arcs inhibiteurs et vitesse maximale augmentent la puissance d'expression jusqu'à celle d'une machine de Turing</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <!-- ── DÉFINITION ── -->
+        <h3>Définition et représentation</h3>
+
+        <p>
+            Un <strong>Réseau de Petri</strong> (RdP), introduit par Carl Adam Petri en 1962, est un formalisme graphique et mathématique
+            permettant de modéliser des systèmes concurrents, distribués ou parallèles. Il décrit non pas ce qui <em>sera</em>, mais
+            ce qui <em>peut être</em> — il capture l'ensemble des comportements possibles d'un système.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Définition formelle :</strong> Un Réseau de Petri est un triplet $N = (P, T, W)$ où :
+            <ul>
+                <li>$P$ — ensemble fini de <strong>places</strong></li>
+                <li>$T$ — ensemble fini de <strong>transitions</strong>, avec $P \cap T = \varnothing$</li>
+                <li>$W : (P \times T) \cup (T \times P) \to \mathbb{N}$ — <strong>fonction de valuation</strong> (poids des arcs)</li>
+            </ul>
+            On note $\text{Pré} = W_{|P \times T}$ la fonction de précondition et $\text{Post} = W_{|T \times P}$ la fonction de postcondition.<br>
+            L'<strong>état</strong> du RdP est donné par un <strong>marquage</strong> $M : P \to \mathbb{N}$ (ou vecteur $M \in \mathbb{N}^{|P|}$). Le marquage initial est noté $M_0$.
+        </div>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Un RdP est comme un plan de métro. Les <strong>stations</strong> sont les places, les <strong>connexions</strong> entre stations sont les transitions, et les <strong>passagers</strong> sont les jetons. Le marquage représente combien de passagers se trouvent dans chaque station à un instant donné.
+        </div>
+
+        <p>Graphiquement, un RdP se compose de :</p>
+        <ul>
+            <li><strong>Cercles</strong> — les places (contiennent des jetons, représentés par des points)</li>
+            <li><strong>Barres</strong> — les transitions</li>
+            <li><strong>Flèches</strong> — les arcs valués (poids indiqué sur l'arc, omis si égal à 1)</li>
+        </ul>
+
+        <div class="callout-info">
+            <strong>Graphe bipartite :</strong> Un RdP est un graphe bipartite — les arcs ne connectent <em>jamais</em> deux places entre elles, ni deux transitions entre elles. Chaque arc va d'une place vers une transition ou d'une transition vers une place.
+        </div>
+
+        <p>
+            De base, un RdP classique n'a <strong>pas de comportement temporel ou événementiel déterministe</strong>.
+            Lorsqu'une transition est franchissable, elle n'est pas forcée — elle <em>peut</em> être franchie (on ne dit pas quand), ou ne pas l'être.
+        </p>
+
+        <!-- ── EXPRESSIVITÉ ── -->
+        <h3>Expressivité d'un modèle</h3>
+
+        <p>Les formalismes de modélisation se distinguent par leur <strong>puissance d'expression</strong> — ce qu'ils sont capables de représenter :</p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Modèle</th>
+                        <th>Sait compter</th>
+                        <th>Test à zéro</th>
+                        <th>Langages</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Automate fini</strong></td>
+                        <td>Non</td>
+                        <td>Non</td>
+                        <td>Réguliers uniquement</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Réseau de Petri</strong></td>
+                        <td>Oui</td>
+                        <td>Non</td>
+                        <td>Intermédiaires (ex: $a^n b^n$)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Machine de Turing</strong></td>
+                        <td>Oui</td>
+                        <td>Oui</td>
+                        <td>Tous (récursivement énumérables)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            Un automate fini ne sait pas compter : il ne peut pas reconnaître le langage $a^n b^n$ pour $n$ quelconque
+            (il lui faudrait une mémoire infinie pour compter les $a$). Un RdP peut le faire grâce aux jetons dans les places,
+            qui forment une mémoire de comptage. En revanche, un RdP ne sait pas tester si une place contient zéro jeton —
+            ce qui limite sa puissance par rapport à une machine de Turing.
+        </p>
+
+        <div class="callout-warning">
+            <strong>Compromis fondamental :</strong> Plus un modèle est expressif, plus il est complexe à analyser. Certains problèmes deviennent même <em>indécidables</em> pour les modèles les plus puissants. Le RdP offre un bon compromis entre expressivité et analysabilité.
+        </div>
+
+        <!-- ── COMPORTEMENT ── -->
+        <h3>Comportement et franchissabilité</h3>
+
+        <div class="highlight-box">
+            <strong>Franchissabilité :</strong> Une transition $t \in T$ est <strong>franchissable</strong> (ou tirable) à partir du marquage $M$, noté $M(t\rangle$, si et seulement si :
+            $$\forall p \in P, \quad M(p) \geq W(p, t)$$
+            Autrement dit, chaque place en entrée de $t$ contient au moins autant de jetons que le poids de l'arc correspondant.
+        </div>
+
+        <div class="formula-box">
+            $$M'(p) = M(p) - W(p, t) + W(t, p)$$
+            <span class="formula-label">Équation de franchissement d'une transition $t$</span>
+        </div>
+
+        <p>
+            Le franchissement de $t$ depuis $M$ produit un nouveau marquage $M'$, noté $M(t\rangle M'$.
+            Intuitivement : on <strong>retire</strong> des jetons des places en entrée (préconditions) et on en <strong>ajoute</strong> dans les places en sortie (postconditions).
+        </p>
+
+        <div class="tip-box">
+            <strong>Exemple concret :</strong> Considérons un RdP avec deux places $P_{\text{dedans}}$ et $P_{\text{dehors}}$, deux transitions $T_{\text{sortir}}$ et $T_{\text{entrer}}$, et le marquage initial $[1, 0]$ (une personne est dedans). $T_{\text{sortir}}$ est franchissable car $P_{\text{dedans}}$ contient 1 jeton. Après franchissement, on obtient $[0, 1]$ — la personne est maintenant dehors. Ce RdP est <strong>sauf</strong> (1-borné) : chaque place ne contient jamais plus d'un jeton.
+        </div>
+
+        <div class="highlight-box">
+            <strong>Séquence franchissable :</strong> La séquence $\sigma = t_1 t_2 \ldots t_n$ est franchissable depuis $M$, notée $M(\sigma\rangle M_n$, s'il existe des marquages intermédiaires $M_1, \ldots, M_n$ tels que $M(t_1\rangle M_1(t_2\rangle M_2 \ldots M_{n-1}(t_n\rangle M_n$.
+        </div>
+
+        <!-- ── LANGAGE ── -->
+        <h3>Langage et marquages accessibles</h3>
+
+        <div class="highlight-box">
+            <strong>Définitions :</strong>
+            <ul>
+                <li><strong>Langage du RdP :</strong> $L(N, M_0) = \{ \sigma \in T^* \mid M_0(\sigma\rangle \}$ — l'ensemble des séquences franchissables depuis $M_0$</li>
+                <li><strong>Langage terminal :</strong> $L(N, M_0, \mathbb{M}) = \{ \sigma \in T^* \mid \exists M \in \mathbb{M}, M_0(\sigma\rangle M \}$ — séquences menant à un marquage dans un ensemble cible $\mathbb{M}$</li>
+                <li><strong>Marquages accessibles :</strong> $\text{Acc}(N, M_0) = \{ M \mid \exists \sigma \in L(N, M_0), M_0(\sigma\rangle M \}$</li>
+            </ul>
+        </div>
+
+        <p>
+            Si on étiquette les transitions sur un alphabet $\Sigma$, le <strong>mot produit</strong> par le RdP est la suite des étiquettes
+            des transitions d'une séquence franchissable. Le langage du RdP étiquetable est ainsi l'ensemble de ces mots.
+        </p>
+
+        <div class="tip-box">
+            <strong>Outil central :</strong> Le <strong>graphe des marquages</strong> est la structure qui contient tous les marquages accessibles et les transitions entre eux. C'est l'outil principal pour étudier les propriétés du RdP.
+        </div>
+
+        <!-- ── PROPRIÉTÉS ── -->
+        <h3>Propriétés d'un RdP</h3>
+
+        <h4>Propriétés de vivacité</h4>
+
+        <div class="highlight-box">
+            <strong>Niveaux de vivacité :</strong>
+            <ul>
+                <li><strong>Pseudo-vivant</strong> — $\forall M \in \text{Acc}(N, M_0), \exists t \in T, M(t\rangle$ — aucun état de blocage (au moins une transition est toujours franchissable)</li>
+                <li><strong>Quasi-vivant</strong> — $\forall t \in T, \exists M \in \text{Acc}(N, M_0) / M(t\rangle$ — chaque transition peut être franchie au moins une fois</li>
+                <li><strong>Vivant</strong> — $\forall M \in \text{Acc}(N, M_0)$, $(N, M)$ est quasi-vivant — depuis n'importe quel état accessible, toutes les fonctionnalités du système restent atteignables</li>
+            </ul>
+        </div>
+
+        <div class="callout-danger">
+            <strong>Ne pas confondre :</strong> Un RdP <em>pseudo-vivant</em> n'est pas forcément <em>vivant</em>. La pseudo-vivacité signifie seulement qu'il n'y a pas de blocage total — mais certaines transitions peuvent devenir définitivement inaccessibles. La vivacité est une propriété beaucoup plus forte : elle garantit que le système conserve <em>toutes</em> ses capacités depuis n'importe quel état.
+        </div>
+
+        <p>
+            <strong>Exemple :</strong> Considérons le RdP Dedans/Dehors avec une transition supplémentaire $T_{\text{partir}}$ (transition puits, sans postcondition).
+            Depuis le marquage $[1, 0]$, le graphe des marquages est : $[1,0] \xrightarrow{T_{\text{sortir}}} [0,1] \xrightarrow{T_{\text{partir}}} [0,0]$
+            et $[0,1] \xrightarrow{T_{\text{entrer}}} [1,0]$.
+            Le marquage $[0,0]$ est un <strong>marquage mort</strong> (état puits) — aucune transition n'est franchissable. Le RdP n'est pas pseudo-vivant.
+        </p>
+
+        <h4>Propriétés relatives à l'état</h4>
+
+        <div class="highlight-box">
+            <strong>Définitions :</strong>
+            <ul>
+                <li><strong>État d'accueil :</strong> $M$ est un état d'accueil de $(N, M_0)$ si $\forall M' \in \text{Acc}(N, M_0), \exists \sigma \in T^* / M'(\sigma\rangle M$ — on peut toujours revenir à $M$</li>
+                <li><strong>Borné :</strong> $(N, M_0)$ est borné si $\text{Acc}(N, M_0)$ est fini, c'est-à-dire $\forall p \in P, \exists k_p \in \mathbb{N} / M(p) \leq k_p$ — chaque place a un nombre maximal de jetons</li>
+                <li><strong>Sauf (1-borné) :</strong> cas particulier où chaque place contient au plus 1 jeton</li>
+            </ul>
+        </div>
+
+        <div class="theorem-box" data-label="Propriété">
+            <strong>Monotonie :</strong> Si $M(t\rangle M'$ et $M_1 \geq M$, alors $M_1(t\rangle M'_1$ avec $M'_1 \geq M'$. Autrement dit, ajouter des jetons ne peut pas empêcher une transition de tirer — au contraire, elle reste franchissable et le résultat contient au moins autant de jetons.
+        </div>
+
+        <div class="tip-box">
+            <strong>Critère de non-bornage :</strong> Si $M(\sigma\rangle M'$ avec $M' \geq M$ (et $M' \neq M$), alors la séquence $\sigma$ peut être répétée indéfiniment, accumulant de plus en plus de jetons — le réseau est <strong>non borné</strong>.
+        </div>
+
+        <p>
+            <strong>Relations entre propriétés :</strong> Vivant $\Rightarrow$ quasi-vivant et pseudo-vivant. L'implication inverse est vraie si le RdP est quasi-vivant, pseudo-vivant, et possède un état d'accueil.
+        </p>
+
+        <!-- ── ANALYSE GM ── -->
+        <h3>Analyse par graphe des marquages</h3>
+
+        <p>
+            Le <strong>graphe des marquages</strong> (GM) est le graphe orienté dont les sommets sont les marquages accessibles et les arcs sont étiquetés par les transitions. Si le RdP est borné, le GM est fini et permet de vérifier toutes les propriétés.
+        </p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Propriété</th>
+                        <th>Condition sur le graphe des marquages</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Séquence infinie</strong></td>
+                        <td>Le GM possède un circuit</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Pseudo-vivant</strong></td>
+                        <td>Tout sommet admet un successeur</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Quasi-vivant</strong></td>
+                        <td>Le GM contient un arc étiqueté par chaque transition de $T$</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Vivant</strong></td>
+                        <td>Toute composante fortement connexe terminale contient un arc étiqueté par chaque transition de $T$</td>
+                    </tr>
+                    <tr>
+                        <td><strong>État d'accueil</strong></td>
+                        <td>Il existe une unique composante fortement connexe terminale</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Borné par $k$</strong></td>
+                        <td>Aucun marquage n'a de composante supérieure à $k$</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout-info">
+            <strong>Limite :</strong> Le graphe des marquages n'est constructible que si le RdP est <strong>borné</strong>. Pour un RdP non borné, l'ensemble des marquages accessibles est infini — il faut alors recourir à l'arbre ou au graphe de couverture.
+        </div>
+
+        <!-- ── COUVERTURE ── -->
+        <h3>Arbre et graphe de couverture</h3>
+
+        <p>
+            Pour les RdP <strong>non bornés</strong>, on introduit le symbole $\omega$ qui représente une quantité « arbitrairement grande » de jetons.
+            L'arbre de couverture est construit en explorant les marquages accessibles, et en remplaçant par $\omega$ les composantes
+            qui croissent le long d'un chemin.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Règles algébriques de $\omega$ :</strong>
+            <ul>
+                <li>$\forall n \in \mathbb{N}$ : $\omega + n = \omega$, $\omega - n = \omega$</li>
+                <li>$\omega > n$ pour tout $n \in \mathbb{N}$</li>
+                <li>$\omega \leq \omega$</li>
+            </ul>
+        </div>
+
+        <p><strong>Construction de l'arbre de couverture :</strong></p>
+        <ul class="steps">
+            <li>Partir du marquage initial $M_0$ comme racine</li>
+            <li>Pour chaque feuille $M$ non traitée, pour chaque transition $t$ franchissable : calculer $M' = M - \text{Pré}(t) + \text{Post}(t)$</li>
+            <li>Si $M'$ existe déjà dans les ancêtres de la feuille (c'est-à-dire $M_0(\sigma_1\rangle M_2(\sigma_2\rangle M')$ avec $M_2 = M'$), ne pas le traiter (feuille terminale)</li>
+            <li>Sinon, si sur le chemin de la racine à $M'$ il existe un ancêtre $M''$ avec $M' \geq M''$ (et $M' \neq M''$), remplacer chaque composante strictement supérieure par $\omega$</li>
+            <li>Ajouter $M'$ comme fils de $M$ et recommencer</li>
+        </ul>
+
+        <p>
+            Le <strong>graphe de couverture</strong> est obtenu en fusionnant les nœuds identiques de l'arbre de couverture.
+        </p>
+
+        <div class="callout-warning">
+            <strong>Perte d'information :</strong> Le graphe de couverture est une sur-approximation — il ne permet pas de vérifier toutes les propriétés. En particulier, l'accessibilité exacte d'un marquage précis n'est plus vérifiable : si une composante vaut $\omega$, on sait seulement que la place peut contenir arbitrairement beaucoup de jetons, mais pas quels marquages exacts sont atteints.
+        </div>
+
+        <!-- ── COMPLEXITÉ ── -->
+        <h3>Complexité de l'analyse</h3>
+
+        <p>L'analyse des RdP est intrinsèquement coûteuse. La complexité dépend de la propriété étudiée et de la classe de RdP :</p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Propriété</th>
+                        <th>Classe de RdP</th>
+                        <th>Complexité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Borné par $k$</strong></td>
+                        <td>Général</td>
+                        <td><span class="badge badge-red">PSPACE-complet</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Accessibilité</strong></td>
+                        <td>Sauf (borné par 1)</td>
+                        <td><span class="badge badge-red">PSPACE-complet</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Accessibilité</strong></td>
+                        <td>Sans cycle</td>
+                        <td><span class="badge badge-orange">NP-complet</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Accessibilité</strong></td>
+                        <td>$\leq$ 5 places</td>
+                        <td><span class="badge badge-red">Double exponentiel</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Vivacité</strong></td>
+                        <td>Sauf</td>
+                        <td><span class="badge badge-red">PSPACE-complet</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sans blocage</strong></td>
+                        <td>Sauf, chemin simple</td>
+                        <td><span class="badge badge-red">PSPACE-complet</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>État d'accueil</strong></td>
+                        <td>Général</td>
+                        <td><span class="badge badge-green">Décidable</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── EXEMPLES ── -->
+        <h3>Exemples de modélisation</h3>
+
+        <h4>Le dîner des philosophes</h4>
+        <p>
+            Quatre philosophes sont assis autour d'une table. Chacun alterne entre <em>penser</em> et <em>manger</em>.
+            Pour manger, un philosophe doit prendre la baguette à sa gauche, puis celle à sa droite. Après avoir mangé, il repose les deux baguettes et se remet à penser.
+        </p>
+        <p>
+            Chaque philosophe est modélisé par un cycle de transitions : $\text{pense}_i \to \text{prend\_gauche}_i \to \text{prend\_droite}_i \to \text{mange}_i \to \text{fini}_i \to \text{pense}_i$.
+            Les baguettes sont des places partagées entre philosophes adjacents.
+        </p>
+
+        <div class="callout-danger">
+            <strong>Deadlock :</strong> Dans la version naïve (chaque philosophe prend d'abord sa baguette gauche), un interblocage est possible : si tous prennent simultanément leur baguette gauche, personne ne peut prendre sa baguette droite — le système est bloqué. Le model checker de Romeo confirme ce deadlock.
+        </div>
+
+        <div class="tip-box">
+            <strong>Solution :</strong> Imposer un <strong>ordre d'accès aux ressources</strong> — les baguettes ne peuvent être prises que dans l'ordre croissant de leur numéro. Le dernier philosophe prend donc d'abord la baguette de numéro le plus bas (sa droite), ce qui brise la circularité de l'attente. Le model checker vérifie alors l'absence de deadlock.
+        </div>
+
+        <h4>Producteur-consommateur</h4>
+        <p>
+            Un <strong>producteur</strong> génère des données et les dépose dans un <em>buffer</em>. Un <strong>consommateur</strong> retire les données du buffer.
+            L'accès au buffer est protégé par un <strong>mutex</strong> (place avec 1 jeton) qui assure l'exclusion mutuelle.
+        </p>
+        <p>
+            Sans borne, le buffer peut croître indéfiniment — le RdP est <strong>non borné</strong>. On peut le borner (par exemple à 5) en ajoutant une place « places libres » initialisée à 5, que le producteur doit consommer pour produire et que le consommateur restitue après consommation. Cela correspond à l'implémentation avec deux sémaphores à compte.
+        </p>
+
+        <div class="callout-warning">
+            <strong>Attention avec Romeo :</strong> Vérifier une propriété autre que la bornitude sur un RdP non borné fait en général planter le model checker. Il faut toujours s'assurer de la bornitude <em>avant</em> de lancer d'autres analyses.
+        </div>
+
+        <!-- ── EXTENSIONS ── -->
+        <h3>Extensions des RdP</h3>
+
+        <h4>Arc inhibiteur</h4>
+        <p>
+            Un <strong>arc inhibiteur</strong> (représenté par un petit cercle au lieu d'une flèche) rend une transition franchissable
+            uniquement si la place source ne contient <strong>pas</strong> de jeton. Cela permet de réaliser un <em>test à zéro</em> — ce que le RdP classique ne peut pas faire.
+        </p>
+
+        <div class="callout-info">
+            <strong>Conséquence :</strong> L'ajout d'arcs inhibiteurs augmente la puissance d'expression du RdP à celle d'une <strong>machine de Turing</strong>. En contrepartie, de nombreux problèmes d'analyse deviennent indécidables.
+        </div>
+
+        <h4>Vitesse maximale</h4>
+        <p>
+            Dans cette extension, le franchissement des transitions devient <strong>déterministe</strong> : tout se passe comme si chaque transition avait une durée de 1 et devait obligatoirement être tirée en durée 1.
+            Cette sémantique augmente également la puissance du RdP à celle d'une machine de Turing.
+        </p>
+
+        <h4>Autres extensions</h4>
+        <ul>
+            <li><strong>RdP coloré</strong> — Les jetons portent des couleurs (types), les arcs sont valués par des couleurs. Permet de fusionner des places/transitions similaires en une seule structure plus compacte</li>
+            <li><strong>RdP à file</strong> — Les places contiennent des files FIFO de jetons, les arcs sont valués par des FIFO. Utile pour modéliser des échanges avec données ordonnées (protocoles de communication)</li>
+        </ul>
+
+        <div class="compare-grid">
+            <div class="compare-item good" data-label="RdP classique">
+                <p>Nombreuses propriétés analysables automatiquement. Bornage, vivacité, accessibilité sont décidables. Compromis idéal expressivité/analysabilité.</p>
+            </div>
+            <div class="compare-item bad" data-label="RdP + inhibiteurs">
+                <p>Puissance d'une machine de Turing. L'accessibilité et la plupart des propriétés deviennent <strong>indécidables</strong> dans le cas général.</p>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

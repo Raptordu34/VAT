@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+    <h2>Model Checking — Logiques temporelles</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>LTL</strong> — Logique linéaire sur les chemins : $X$ (prochain), $G$ (toujours), $F$ (finalement), $U$ (jusqu'à), $W$ (faible jusqu'à)</li>
+            <li><strong>Structure de Kripke</strong> — Modèle $M = (S, I, L, \to)$ : états, états initiaux, interprétation, transitions. Base du model checking non temporisé</li>
+            <li><strong>CTL / CTL*</strong> — Ajout de quantificateurs de chemin $A$ (pour tout) et $E$ (il existe). CTL couple obligatoirement quantificateur et opérateur temporel</li>
+            <li><strong>Abstraction du TPN</strong> — L'espace continu est rendu fini par regroupement : graphe de classes, régions, zones, etc. Chaque abstraction préserve un sous-ensemble de propriétés</li>
+            <li><strong>TPN-TCTL / ParamTPN-PTCTL</strong> — Logiques temporisées avec contraintes de marquage (GMEC) et intervalles de temps $[a,b]$ sur les opérateurs</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <!-- ── LTL ── -->
+        <h3>Linear Temporal Logic (LTL)</h3>
+
+        <p>
+            La logique temporelle linéaire (LTL) s'applique à des <strong>séquences de transitions</strong>.
+            Dans le contexte des TPN, on considère une séquence non temporisée $w = t_1 t_2 \ldots$ et on vérifie
+            des propriétés sur les marquages atteints le long de cette séquence.
+            LTL raisonne sur un seul chemin : il n'y a pas de branchement, le temps est linéaire.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Opérateurs LTL :</strong>
+            <ul>
+                <li>$Xf$ (<em>neXt</em>) — $f$ est vraie à la <strong>prochaine étape</strong></li>
+                <li>$Gf$ (<em>Globally</em>) — $f$ est vraie dans <strong>tous les états</strong> à partir de maintenant</li>
+                <li>$Ff$ (<em>Finally</em>) — $f$ est vraie dans <strong>au moins un état futur</strong></li>
+                <li>$f\, U\, g$ (<em>Until</em>) — $f$ est vraie jusqu'à ce que $g$ soit vraie ($g$ doit être vraie à un certain point)</li>
+                <li>$f\, W\, g$ (<em>Weakuntil</em>) — comme $U$, sauf que $f$ peut rester toujours vraie sans que $g$ le soit jamais</li>
+            </ul>
+        </div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Opérateur</th>
+                        <th>Notation</th>
+                        <th>Signification intuitive</th>
+                        <th>Exemple météo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>neXt</strong></td>
+                        <td>$Xf$</td>
+                        <td>À l'étape suivante, $f$ est vraie</td>
+                        <td>« Il fera beau <em>demain</em> »</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Globally</strong></td>
+                        <td>$Gf$</td>
+                        <td>$f$ est toujours vraie à partir de maintenant</td>
+                        <td>« Il fera toujours beau »</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Finally</strong></td>
+                        <td>$Ff$</td>
+                        <td>$f$ sera vraie à un moment futur</td>
+                        <td>« Il fera beau un jour »</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Until</strong></td>
+                        <td>$f\, U\, g$</td>
+                        <td>$f$ reste vraie jusqu'à ce que $g$ le devienne (et $g$ le devient forcément)</td>
+                        <td>« Il pleut jusqu'à ce qu'il fasse beau »</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Weakuntil</strong></td>
+                        <td>$f\, W\, g$</td>
+                        <td>Comme $U$ mais $g$ peut ne jamais arriver (si $f$ reste toujours vraie)</td>
+                        <td>« Il pleut jusqu'à ce qu'il fasse beau — ou indéfiniment »</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="formula-box">
+            $$f\, W\, g \;\equiv\; (f\, U\, g) \vee Gf$$
+            <span class="formula-label">Le Weakuntil est équivalent à : soit $f$ jusqu'à $g$, soit $f$ toujours</span>
+        </div>
+
+        <div class="tip-box">
+            <strong>Relations utiles :</strong> $Ff \equiv \top\, U\, f$ (finalement = vrai jusqu'à $f$) et $Gf \equiv \neg F(\neg f)$ (toujours = jamais pas $f$). Ces équivalences permettent de simplifier les formules.
+        </div>
+
+        <!-- ── KRIPKE ── -->
+        <h3>Structure de Kripke</h3>
+
+        <p>
+            Pour appliquer LTL ou CTL, il faut disposer d'un modèle formel du système à vérifier.
+            La <strong>structure de Kripke</strong> est ce modèle : elle décrit tous les états possibles du système,
+            les transitions entre eux, et ce qui est vrai dans chaque état.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Définition :</strong> Une structure de Kripke est un quadruplet $M = (S, I, L, \to)$ où :
+            <ul>
+                <li>$S$ — ensemble d'<strong>états</strong></li>
+                <li>$I \subseteq S$ — ensemble des <strong>états initiaux</strong></li>
+                <li>$\to \subseteq S \times S$ — relation de <strong>transition</strong> (tout état a au moins un successeur)</li>
+                <li>$L : S \to 2^{PA}$ — fonction d'<strong>interprétation</strong> associant à chaque état les propositions atomiques vraies ($PA$ = ensemble des propositions atomiques)</li>
+            </ul>
+        </div>
+
+        <div class="callout-info">
+            <strong>Deadlock dans une structure de Kripke :</strong> La définition impose que tout état possède au moins un successeur. Un deadlock est donc représenté par une <strong>boucle sur le même état</strong> (l'état pointe vers lui-même) — c'est la seule façon de respecter la contrainte tout en modélisant un état bloquant.
+        </div>
+
+        <p>
+            <strong>Exemple :</strong> Considérons $M = (\{1,2,3\}, \{1\}, L, \to)$ avec $1 \to 2 \to 3$ (et $3 \to 3$ pour modéliser un état terminal), $L(1) = \{a, b\}$, $L(2) = \{b\}$, $L(3) = \{c\}$, $PA = \{a,b,c\}$.
+        </p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Formule</th>
+                        <th>Résultat depuis l'état 1</th>
+                        <th>Explication</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>$AGb$</td>
+                        <td><span class="badge badge-red">Faux</span></td>
+                        <td>$b$ n'est pas vrai dans l'état 3 ($L(3) = \{c\}$)</td>
+                    </tr>
+                    <tr>
+                        <td>$AFb$</td>
+                        <td><span class="badge badge-green">Vrai</span></td>
+                        <td>$b$ est vrai dans l'état 2, qui est atteint depuis 1</td>
+                    </tr>
+                    <tr>
+                        <td>$A(b\, W\, c)$</td>
+                        <td><span class="badge badge-green">Vrai</span></td>
+                        <td>Sur tout chemin, $b$ est vrai jusqu'à ce que $c$ le devienne (en état 3)</td>
+                    </tr>
+                    <tr>
+                        <td>$EFb$ depuis 3</td>
+                        <td><span class="badge badge-red">Faux</span></td>
+                        <td>Depuis l'état 3, aucun chemin ne mène à un état où $b$ est vrai</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout-info">
+            <strong>Lien avec les RdP :</strong> Le graphe des marquages d'un RdP (ou le graphe de couverture) peut être vu comme une structure de Kripke : les marquages sont les états, les transitions de franchissement sont les arcs, et l'interprétation est définie par le marquage lui-même (par exemple : « la place $p$ contient au moins 1 jeton »).
+        </div>
+
+        <!-- ── CTL ── -->
+        <h3>Computation Tree Logic (CTL et CTL*)</h3>
+
+        <p>
+            CTL étend LTL en raisonnant non plus sur un seul chemin linéaire, mais sur <strong>l'arbre de tous les chemins possibles</strong>
+            à partir d'un état. Elle ajoute des quantificateurs de chemin qui permettent d'exprimer des propriétés
+            sur la structure arborescente du système.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Quantificateurs de chemin :</strong>
+            <ul>
+                <li>$A$ (<em>All</em>, $\forall$) — la propriété est vraie sur <strong>tous les chemins</strong> partant de l'état courant</li>
+                <li>$E$ (<em>Exists</em>, $\exists$) — la propriété est vraie sur <strong>au moins un chemin</strong> partant de l'état courant</li>
+            </ul>
+            Les opérateurs temporels $X, G, F, U, W$ ont la même signification qu'en LTL, mais s'appliquent maintenant à des chemins quantifiés.
+        </div>
+
+        <div class="callout-warning">
+            <strong>LTL vs CTL — incomparabilité :</strong> CTL et LTL sont des logiques <em>incomparables</em> : certaines propriétés s'expriment en LTL mais pas en CTL, et vice-versa. Par exemple, $AG(EF\, p)$ (« depuis tout état accessible, il est toujours possible d'atteindre $p$ ») est exprimable en CTL mais pas en LTL. À l'inverse, $FGp$ (« éventuellement, $p$ sera toujours vraie ») est exprimable en LTL mais pas en CTL pur.
+        </div>
+
+        <div class="callout-info">
+            <strong>CTL vs CTL* :</strong> En <strong>CTL</strong>, chaque quantificateur de chemin ($A$, $E$) doit être immédiatement suivi d'un opérateur temporel ($X$, $G$, $F$, $U$) — les formules autorisées sont $AX$, $AG$, $AF$, $AU$, $EX$, $EG$, $EF$, $EU$. En <strong>CTL*</strong>, cette restriction est levée : on peut combiner librement les quantificateurs et les opérateurs. CTL* est strictement plus expressif que CTL et que LTL.
+        </div>
+
+        <h4>Sémantique CTL* — formules d'état</h4>
+
+        <p>On note $(M, s) \models \Phi$ pour « l'état $s$ satisfait la formule $\Phi$ dans la structure $M$ » :</p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Formule</th>
+                        <th>Condition de satisfaction</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>$(M,s) \models \top$</td><td>Toujours vrai</td></tr>
+                    <tr><td>$(M,s) \not\models \bot$</td><td>Toujours faux</td></tr>
+                    <tr><td>$(M,s) \models p$</td><td>$p \in L(s)$</td></tr>
+                    <tr><td>$(M,s) \models \neg\Phi$</td><td>$(M,s) \not\models \Phi$</td></tr>
+                    <tr><td>$(M,s) \models \Phi_1 \wedge \Phi_2$</td><td>$(M,s) \models \Phi_1$ et $(M,s) \models \Phi_2$</td></tr>
+                    <tr><td>$(M,s) \models \Phi_1 \vee \Phi_2$</td><td>$(M,s) \models \Phi_1$ ou $(M,s) \models \Phi_2$</td></tr>
+                    <tr><td>$(M,s) \models \Phi_1 \Rightarrow \Phi_2$</td><td>$(M,s) \not\models \Phi_1$ ou $(M,s) \models \Phi_2$</td></tr>
+                    <tr><td>$(M,s) \models A\phi$</td><td>Pour tout chemin $\sigma$ partant de $s$, $\sigma \models \phi$</td></tr>
+                    <tr><td>$(M,s) \models E\phi$</td><td>Il existe un chemin $\sigma$ partant de $s$ tel que $\sigma \models \phi$</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h4>Sémantique CTL* — formules de chemin</h4>
+
+        <p>Pour un chemin $\sigma = s_0 \to s_1 \to s_2 \to \ldots$, on note $\sigma(i)$ le suffixe $s_i \to s_{i+1} \to \ldots$ :</p>
+
+        <div class="formula-box">
+            $$\sigma \models X\phi \;\Leftrightarrow\; \sigma(1) \models \phi$$
+            $$\sigma \models F\phi \;\Leftrightarrow\; \exists i \geq 0,\; \sigma(i) \models \phi$$
+            $$\sigma \models G\phi \;\Leftrightarrow\; \forall i \geq 0,\; \sigma(i) \models \phi$$
+            $$\sigma \models \phi_1\, U\, \phi_2 \;\Leftrightarrow\; \exists i \geq 0,\; \sigma(i) \models \phi_2 \;\wedge\; \forall 0 \leq j < i,\; \sigma(j) \models \phi_1$$
+            <span class="formula-label">Sémantique des opérateurs temporels sur les chemins</span>
+        </div>
+
+        <!-- ── ABSTRACTION TPN ── -->
+        <h3>Étude de comportement des TPN</h3>
+
+        <p>
+            Un TPN s'exécute en <strong>temps continu</strong> — en théorie, l'espace d'états est donc infini (une horloge peut prendre n'importe quelle valeur réelle dans son intervalle). Pour appliquer le model checking, il faut <strong>abstraire</strong> cet espace continu en un graphe fini.
+        </p>
+
+        <p>L'idée est de <strong>regrouper des états « équivalents »</strong> selon une relation d'équivalence appropriée :</p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type d'abstraction</th>
+                        <th>Principe</th>
+                        <th>Propriétés préservées</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Graphe de classes</strong></td>
+                        <td>Regroupe les états ayant même marquage et mêmes contraintes sur les horloges (système d'inégalités)</td>
+                        <td>Propriétés LTL et CTL* <em>non temporisées</em></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Graphe de régions géométriques</strong></td>
+                        <td>Partition de l'espace des horloges en régions convexes</td>
+                        <td>Propriétés temporisées (TCTL)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Graphe de classes fort</strong></td>
+                        <td>Raffinement du graphe de classes, distingue mieux les ordres de tir</td>
+                        <td>Propriétés LTL et CTL* (y compris certaines temporisées)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Graphe basé zones</strong></td>
+                        <td>Utilise des zones (polyèdres de différences) pour représenter les contraintes</td>
+                        <td>Propriétés temporisées et non temporisées</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Graphe de classes atomique</strong></td>
+                        <td>Raffine encore pour distinguer tous les comportements atomiques</td>
+                        <td>Propriétés LTL, CTL*, et temporisées</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout-warning">
+            <strong>Perte d'information :</strong> Le graphe de classes ne distingue pas tous les ordres de tir possibles. Exemple : si $\theta_1 = 0$, seule la séquence $T_2, T_3$ est permise ; si $\theta_1 = 4$, seule $T_3, T_2$ est permise. Le graphe de classes montre les deux comme possibles, mais ne montre pas que ces deux cas sont mutuellement exclusifs. Il préserve cependant les propriétés LTL et CTL* non temporisées.
+        </div>
+
+        <h4>Exemple : graphe de classes</h4>
+        <p>
+            Considérons un TPN avec $P_1$, $P_2$, $P_3$, trois transitions $T_1[0,4]$, $T_2[3,4]$, $T_3[5,6]$.
+            Le marquage initial est $[1, 0, 1]$ ($T_1$ et $T_3$ valides).
+            La classe initiale $C_0$ regroupe tous les états accessibles depuis $M_0$ sans franchissement :
+        </p>
+        <pre><code>C₀ [1,0,1] : 0 ≤ θ₁ ≤ 4, 5 ≤ θ₃ ≤ 6, −6 ≤ θ₁ − θ₃ ≤ −1
+    │ T₁
+    ↓
+C₁ [0,1,1] : 3 ≤ θ₂ ≤ 4, 1 ≤ θ₃ ≤ 6, −3 ≤ θ₂ − θ₃ ≤ 3
+    ├─ T₂ ──→ C₂ [0,0,1] : 0 ≤ θ₃ ≤ 3
+    │              │ T₃ → C₄ [0,0,0]
+    └─ T₃ ──→ C₃ [0,1,0] : 0 ≤ θ₂ ≤ 3
+                   │ T₂ → C₄ [0,0,0]</code></pre>
+
+        <div class="callout-info">
+            <strong>Remarque :</strong> Si $\theta_1 = 0$ dans $C_0$, en réalité seule la séquence $T_2, T_3$ est permise. Si $\theta_1 = 4$, seule $T_3, T_2$ est permise. Le graphe de classes montre les deux comme possibles depuis $C_1$ — il sur-approxíme les comportements possibles, ce qui est correct pour vérifier des propriétés de sûreté (on ne rate pas de contre-exemples) mais peut être pessimiste pour les propriétés de vivacité.
+        </div>
+
+        <!-- ── TPN-TCTL ── -->
+        <h3>TPN-TCTL</h3>
+
+        <p>
+            Pour vérifier des propriétés sur les <strong>marquages</strong> d'un TPN (et non seulement sur des propositions atomiques binaires),
+            on utilise les <strong>GMEC</strong> (Generalized Mutual Exclusion Constraints) comme atomes de la logique.
+        </p>
+
+        <div class="highlight-box">
+            <strong>GMEC (Generalized Mutual Exclusion Constraint) :</strong> Une GMEC est une formule de la forme :
+            $$\sum_{i=1}^{m} a_i \cdot M(p_i) \;\text{COMP}\; c$$
+            avec $a_i \in \mathbb{Z}$, $\text{COMP} \in \{<, \leq, =, \geq, >\}$, $c \in \mathbb{N}$.
+            Les GMEC peuvent être combinées logiquement : <code>GMEC and GMEC</code>, <code>GMEC or GMEC</code>, <code>GMEC => GMEC</code>, <code>not GMEC</code>.
+        </div>
+
+        <p>
+            TPN-TCTL s'exprime sur une structure de Kripke construite à partir du <strong>graphe des zones paramétriques</strong>,
+            dans laquelle la fonction d'interprétation est une combinaison linéaire exprimée à base des marquages.
+        </p>
+
+        <div class="callout-info">
+            <strong>Exemple de GMEC :</strong>
+            <ul>
+                <li><code>M(p1) &lt;= 5</code> — le buffer contient au plus 5 éléments</li>
+                <li><code>M(p_mutex) = 1</code> — le mutex est libre</li>
+                <li><code>M(p1) + M(p2) &lt;= 10</code> — le total de deux places ne dépasse pas 10</li>
+            </ul>
+        </div>
+
+        <!-- ── ParamTPN-PTCTL ── -->
+        <h3>ParamTPN-PTCTL</h3>
+
+        <p>
+            ParamTPN-PTCTL est l'extension temporisée de CTL appliquée aux TPN paramétriques.
+            Les opérateurs temporels sont annotés par des <strong>intervalles de temps</strong> $[a, b]$,
+            permettant d'exprimer des propriétés de type « dans un délai borné ».
+        </p>
+
+        <div class="highlight-box">
+            <strong>Opérateurs ParamTPN-PTCTL :</strong>
+            <ul>
+                <li>$E\varphi\, U[a,b]\, \psi$ — Il existe un chemin sur lequel pour une date $r \in [a,b]$, $\psi$ est vraie, et pour toute date antérieure, $\varphi$ est vraie</li>
+                <li>$A\varphi\, U[a,b]\, \psi$ — Pour tout chemin possible…</li>
+                <li>$EF[a,b]\, \varphi$ — Il existe un chemin sur lequel on trouve une date dans $[a,b]$ telle que $\varphi$ est vraie</li>
+                <li>$AF[a,b]\, \varphi$, $EG\, \varphi$, $AG\, \varphi$ — Variantes existentielles/universelles</li>
+            </ul>
+        </div>
+
+        <div class="formula-box">
+            $$\varphi \;\mathtt{-->[a,b]}\; \psi \;\equiv\; AG(\varphi \Rightarrow AF[a,b]\, \psi)$$
+            <span class="formula-label">L'opérateur <code>--&gt;</code> : « chaque fois que $\varphi$ est vrai, $\psi$ sera vrai dans un délai $[a,b]$ »</span>
+        </div>
+
+        <div class="tip-box">
+            <strong>Opérateur central en pratique :</strong> L'opérateur <code>--&gt;[a,b]</code> est le plus utilisé pour le dimensionnement. Il exprime les propriétés de type « délai de réponse garanti ».
+            <br>Exemples :
+            <ul>
+                <li>Calculer le WCRT (pire temps de réponse) d'une tâche $\tau_i$ : <code>(tâche_activée == 1) --&gt;[0,a](tâche_terminée == 1)</code>, puis on cherche le plus petit $a$ satisfaisant la formule</li>
+                <li>Calculer le délai maximal panne→alarme : <code>(P6==1) --&gt;[0,a](P5==1)</code></li>
+            </ul>
+        </div>
+
+        <h4>Exemple complet — watchdog dans Romeo</h4>
+        <p>
+            <strong>Système :</strong> Un message est reçu toutes les 50 ms (± 2% d'incertitude sur les horloges → intervalle $[49, 51]$ ms). Il est traité en au plus 5 ms, ce qui réinitialise le watchdog. Le watchdog se déclenche s'il n'a pas été réinitialisé pendant 100 ms. Le traitement du watchdog prend au pire 2 ms.
+        </p>
+        <p>
+            <strong>Question :</strong> Quel est le délai maximal entre l'occurrence d'une panne et la fin du traitement du watchdog ?
+        </p>
+        <p>
+            <strong>Formule Romeo :</strong> <code>(P6==1) --&gt;[0,a](P5==1)</code> avec $a$ paramètre.
+        </p>
+        <p>
+            <strong>Résultat :</strong> $a \in [107, +\infty[$ → il faut prévoir au moins <strong>107 unités de temps</strong> pour garantir que $P5$ est marquée après que $P6$ soit marquée.
+        </p>
+
+        <div class="callout-info">
+            <strong>Interprétation :</strong> 107 ms correspond au pire cas : la panne survient juste après une réinitialisation du watchdog (100 ms d'attente du watchdog) + 5 ms de traitement + 2 ms de traitement du watchdog = 107 ms au maximum.
+        </div>
+
+        <!-- ── CONCLUSION ── -->
+        <h3>Conclusion et limites</h3>
+
+        <div class="compare-grid">
+            <div class="compare-item good" data-label="Points forts">
+                <p>
+                    Outil <strong>puissant et automatique</strong> de vérification formelle. Fournit des contre-exemples concrets en cas de violation. Applicable à des systèmes temps réel complexes (ordonnancement, réseaux embarqués).
+                </p>
+            </div>
+            <div class="compare-item bad" data-label="Limites">
+                <p>
+                    <strong>Complexité élevée</strong> (PSPACE-complet voire EXPSPACE selon la propriété). Passage à l'échelle non assuré — les systèmes industriels réels peuvent avoir des espaces d'états trop grands. Certaines analyses sont indécidables avec des extensions (inhibiteurs + paramètres).
+                </p>
+            </div>
+            <div class="compare-item neutral" data-label="Positionnement">
+                <p>
+                    Le <strong>compromis expressivité/décidabilité</strong> doit être choisi en fonction du problème : RdP classique pour la concurrence, TPN pour le temps, TPN paramétrique pour le dimensionnement. Plus le modèle est puissant, plus l'analyse est coûteuse.
+                </p>
+            </div>
+        </div>
+
+        <div class="callout-info">
+            <strong>À retenir :</strong> Le model checking par TPN paramétrique avec stopwatchs peut être utilisé pour analyser finement les comportements possibles d'un système de tâches temps réel. C'est une approche complémentaire (et plus précise pour les dépendances) à la RTA classique, au prix d'une complexité algorithmique significativement plus élevée.
+        </div>
+
+    </div>
+</body>
+</html>

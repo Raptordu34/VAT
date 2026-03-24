@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <!-- KaTeX — rendu mathématique -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+
+    <h2>Complexité Algorithmique</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>Distinction fondamentale</strong> — Un algorithme est une solution (borne supérieure), un problème a une complexité intrinsèque (borne inférieure).</li>
+            <li><strong>Machine de Turing</strong> — Modèle de calcul universel utilisé pour définir la décidabilité et les classes de complexité.</li>
+            <li><strong>Classes P, NP, Co-NP</strong> — Classification selon la difficulté de trouver ou de vérifier une solution en temps polynomial.</li>
+            <li><strong>Réduction Polynomiale</strong> — Outil mathématique pour prouver la NP-difficulté d'un problème en le reliant à un problème déjà connu.</li>
+            <li><strong>Sens Fort vs Faible</strong> — Distinction cruciale entre les problèmes solubles en temps pseudo-polynomial et ceux intrinsèquement difficiles.</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <hr class="section-divider">
+        <h3>Complexité d'un algorithme vs. d'un problème</h3>
+        <p>
+            La complexité représente la <strong>substantifique moelle</strong> d'un problème. Il est crucial de distinguer l'efficacité d'une solution particulière (l'algorithme) de la difficulté inhérente au problème lui-même.
+        </p>
+
+        <h4>L'algorithme comme borne supérieure</h4>
+        <p>
+            Considérons l'algorithme <code>Inclue</code> qui teste si un tableau $T$ contient une valeur $E$. Sa complexité est en $O(n)$, où $n$ est la taille du tableau.
+        </p>
+
+        <div class="algo-block" data-name="Algorithme Inclue">
+<pre><code>Inclue (T : tableau de n entiers, E : entier)
+-- Renvoie vrai ssi E ∈ T
+Pour i de 1 à n
+    Si T(i) = E retourner vrai
+Retourner faux</code></pre>
+        </div>
+
+        <div class="callout-info">
+            <strong>Remarque :</strong> La taille de l'entrée n'est pas la valeur des entiers, mais le nombre de cases (n) et la taille de codage des entiers. En temps réel, on suppose souvent que les opérations sur les registres (32/64 bits) sont en temps constant.
+        </div>
+
+        <h4>Le problème comme borne inférieure</h4>
+        <p>
+            Un même problème peut être résolu par différents algorithmes. La complexité du <em>problème</em> est celle du meilleur algorithme possible pour le résoudre.
+        </p>
+
+        <div class="tip-box">
+            <strong>Analogie :</strong> Un algorithme est un <em>chemin</em> spécifique pour gravir une montagne. La complexité du problème est la <em>distance minimale</em> théorique pour atteindre le sommet.
+        </div>
+
+        <ul>
+            <li>Recherche dans un tableau <strong>non trié</strong> : Complexité du problème = $O(n)$.</li>
+            <li>Recherche dans un tableau <strong>trié</strong> : Complexité du problème = $O(\log n)$ (recherche dichotomique).</li>
+        </ul>
+
+        <div class="callout-warning">
+            <strong>Attention :</strong> Utiliser un algorithme sous-optimal (ex: <code>Inclue</code> sur un tableau trié) ne change pas la complexité intrinsèque du problème, mais témoigne d'une mauvaise exploitation des propriétés des données.
+        </div>
+
+        <hr class="section-divider">
+        <h3>Machine de Turing et Décidabilité</h3>
+        <p>
+            Pour modéliser un ordinateur de façon complète sans s'encombrer des détails d'architecture (RAM, registres), Alan Turing a proposé une abstraction fondamentale.
+        </p>
+
+        <div class="highlight-box">
+            <strong>Machine de Turing (MdT) :</strong> Définie par un ruban infini (mémoire séquentielle), une tête de lecture/écriture, un alphabet (incluant le symbole blanc $\epsilon$ ou $b$), un état courant, et une fonction de transition.
+        </div>
+
+        <p>
+            Chaque transition est un quadruplet : <code>(État actuel, Symbole lu) → (Nouveau symbole, Action, Nouvel état)</code>. Les actions possibles sont : <em>pas à gauche</em> (L), <em>pas à droite</em> (R), ou <em>arrêt</em> (Halt).
+        </p>
+
+        <h4>Exemple : Addition en base 1</h4>
+        <p>
+            Pour additionner $3 + 2$, on fournit l'entrée <code>111x11</code>. Le résultat attendu est <code>11111</code>. La machine doit remplacer le séparateur <code>x</code> par <code>1</code> et supprimer le dernier <code>1</code> (ou inversement).
+        </p>
+
+        <div class="figure-box">
+            <span class="figure-placeholder">
+                [ Schéma d'automate : États 0 à 4, transitions avec 1/1,R ; x/1,R ; 1/$\epsilon$,L ]
+            </span>
+            <figcaption>Fig. 1 — Automate d'une MdT additionneuse en base 1</figcaption>
+        </div>
+
+        <h4>Décidabilité et Problème de l'arrêt</h4>
+        <p>
+            Une MdT sert à démontrer ce qu'un ordinateur <em>peut</em> ou <em>ne peut pas</em> faire.
+        </p>
+
+        <div class="callout-danger">
+            <strong>Indécidabilité :</strong> Le problème de l'arrêt (savoir si un programme finira par s'arrêter pour une entrée donnée) est <strong>indécidable</strong>. Il n'existe pas d'algorithme général capable de répondre à cette question pour tous les cas.
+        </div>
+
+        <hr class="section-divider">
+        <h3>Classes de complexité</h3>
+        <p>
+            On classe les problèmes de décision (réponse par OUI ou NON) selon les ressources nécessaires pour les résoudre sur une architecture Von Neumann.
+        </p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Classe</th>
+                        <th>Définition</th>
+                        <th>Exemple</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>P</strong></td>
+                        <td>Soluble en temps <strong>Polynomial</strong></td>
+                        <td>Recherche, Tri, Chemin le plus court</td>
+                    </tr>
+                    <tr>
+                        <td><strong>NP</strong></td>
+                        <td>Vérifiable en temps polynomial (Non-déterministe)</td>
+                        <td>SAT, 3SAT, Voyageur de commerce</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Co-NP</strong></td>
+                        <td>Le complémentaire est dans NP (Vérifier le NON)</td>
+                        <td>Tautologie, Contradiction</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tip-box">
+            <strong>Astuce :</strong> Un problème est dans <strong>NP</strong> si, quand la réponse est OUI, on peut nous fournir une "preuve" (certificat) que nous pouvons vérifier rapidement.
+        </div>
+
+        <h4>Le problème SAT et 3SAT</h4>
+        <p>
+            Le problème de satisfaisabilité d'une formule booléenne (SAT) est le problème "racine" de la complexité. <strong>3SAT</strong> est sa version restreinte où chaque clause possède exactement 3 littéraux.
+        </p>
+
+        <div class="formula-box">
+            $$(a \lor \neg b \lor c) \land (\neg a \lor \neg b \lor c) \land \dots$$
+            <span class="formula-label">Instance de 3SAT</span>
+        </div>
+
+        <p>
+            Pour $n$ variables, un arbre de valuation possède $2^n$ feuilles. Tester toutes les combinaisons est exponentiel, mais vérifier si une valuation donnée satisfait la formule est polynomial.
+        </p>
+
+        <div class="highlight-box">
+            <strong>NP-complet :</strong> Un problème est NP-complet s'il est dans NP et s'il est au moins aussi difficile que tous les autres problèmes de NP (NP-difficile).
+        </div>
+
+        <div class="callout-warning">
+            <strong>Conjecture P ≠ NP :</strong> L'un des 7 problèmes du millénaire. On suppose qu'être capable de vérifier une solution ne permet pas forcément de la trouver efficacement.
+        </div>
+
+        <hr class="section-divider">
+        <h3>Réduction Polynomiale</h3>
+        <p>
+            C'est la méthode standard pour prouver qu'un nouveau problème $B$ est difficile. Si on sait qu'un problème $A$ est NP-complet, on essaie de transformer toute instance de $A$ en une instance de $B$.
+        </p>
+
+        <ul class="steps">
+            <li>Choisir un problème $A$ connu pour être <strong>NP-complet</strong>.</li>
+            <li>Construire une transformation $f$ telle que $x \in A \iff f(x) \in B$.</li>
+            <li>Prouver que $f$ s'exécute en <strong>temps polynomial</strong>.</li>
+            <li>Conclure que $B$ est au moins aussi difficile que $A$.</li>
+        </ul>
+
+        <h4>Exemple : 3-PARTITION vers l'ordonnancement</h4>
+        <p>
+            On réduit le problème <strong>3-PARTITION</strong> (répartir $3n$ entiers en $n$ triplets de somme $B$) vers un problème d'ordonnancement sur deux machines avec ressource partagée ($PD2|res1..|Cmax$).
+        </p>
+
+        <div class="figure-box">
+            <span class="figure-placeholder">
+                [ Diagramme de Gantt montrant des jobs de durée i_j sur Machine 1 et des jobs "tampons" sur Machine 2 ]
+            </span>
+            <figcaption>Fig. 2 — Réduction de 3-PARTITION vers PD2|res1..|Cmax</figcaption>
+        </div>
+
+        <p>
+            On montre que le temps de complétion minimal $C_{max}$ n'est atteint que si les jobs sur la machine 1 sont parfaitement regroupés par paquets de somme $B$, ce qui résout 3-PARTITION.
+        </p>
+
+        <hr class="section-divider">
+        <h3>Sens fort vs. Sens faible</h3>
+        <p>
+            La complexité dépend aussi de la manière dont les nombres sont encodés.
+        </p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <strong>Sens faible (Weak NP-hard)</strong><br>
+                Le problème devient polynomial si les nombres sont codés en unaire (base 1). On dit qu'il est <strong>pseudo-polynomial</strong>.
+                <span class="badge badge-green">Soluble via Dyn. Prog.</span>
+            </div>
+            <div class="highlight-box">
+                <strong>Sens fort (Strong NP-hard)</strong><br>
+                Le problème reste NP-difficile même si les valeurs numériques sont petites (bornées par un polynôme en la taille de l'entrée).
+                <span class="badge badge-red">Intrinsèquement Difficile</span>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card accent">
+                <span class="metric-value">RTA</span>
+                <span class="metric-label">Sens faible (priorités fixes)</span>
+            </div>
+            <div class="metric-card bad">
+                <span class="metric-value">Shared Res.</span>
+                <span class="metric-label">Sens fort (échéances)</span>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <strong>Exemple :</strong> Le calcul du temps de réponse (RTA) pour des tâches indépendantes est NP-difficile au sens faible, tandis que l'ordonnancement avec ressources partagées est souvent NP-difficile au sens fort.
+        </div>
+
+        <hr class="section-divider">
+        <h3>Bibliographie</h3>
+        <p class="source">[1] Garey, M. R., & Johnson, D. S. (1979). <em>Computers and Intractability: A Guide to the Theory of NP-Completeness</em>. W. H. Freeman.</p>
+        <p class="source">TD VAT — Complexité algorithmique, Dr. Steven J. Zeil (MdT examples).</p>
+
+    </div>
+
+</body>
+</html>

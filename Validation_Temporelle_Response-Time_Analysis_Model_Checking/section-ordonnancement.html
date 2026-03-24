@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+
+    <h2>Ordonnancement</h2>
+
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>Simulation</strong> — Trace le comportement d'un ordonnancement ; valide un système ssi elle représente le pire cas (viable dans le contexte).</li>
+            <li><strong>Viabilité</strong> — Propriété assurant que la modification d'un paramètre (réduire $C_i$, augmenter $T_i$ ou $r_i$) n'augmente pas les temps de réponse.</li>
+            <li><strong>Charge processeur</strong> — $U = \sum C_i/T_i \leq 1$ est une condition nécessaire (mono-proc) ; RM possède des bornes suffisantes (69% ou hyperbolique).</li>
+            <li><strong>Optimalité FTP</strong> — RM est optimal si $D_i = T_i$, DM est optimal si $D_i \leq T_i$ (sous conditions de tâches indépendantes et préemptibles).</li>
+            <li><strong>Algorithme d'Audsley (OPA)</strong> — Permet de trouver une affectation de priorités optimale en $O(n^2)$ quand RM/DM ne sont plus applicables.</li>
+        </ul>
+    </div>
+
+    <div class="detailed-content">
+        <h3>Simulation d'ordonnancement</h3>
+        <div class="highlight-box">
+            La <strong>simulation</strong> consiste à tracer le fonctionnement attendu de l'ordonnancement d'un système pour un jeu de paramètres donnés.
+        </div>
+        <p>Elle ne représente qu'un <strong>comportement unique</strong> défini par des durées d'exécution, des périodes et des dates de réveil fixes. Pour qu'une simulation puisse valider un système, elle doit impérativement représenter le <strong>pire cas</strong>.</p>
+        
+        <div class="callout-info">
+            La simulation est une Condition Nécessaire et Suffisante (CNS) d'ordonnançabilité pour :
+            <ul>
+                <li>Tâches indépendantes, périodiques ou sporadiques sur monoprocesseur.</li>
+                <li>Tâches périodiques sur multiprocesseur.</li>
+            </ul>
+        </div>
+
+        <h3>Contexte et hypothèses</h3>
+        <div class="highlight-box">
+            Le <strong>contexte</strong> définit l'ensemble des hypothèses s'appliquant au système (processeur, tâches, ordonnanceur).
+        </div>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Élément</th>
+                        <th>Variantes possibles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Processeur</td>
+                        <td>Monoprocesseur, multiprocesseur (global, partitionné), réparti</td>
+                    </tr>
+                    <tr>
+                        <td>Ordonnanceur</td>
+                        <td>En-ligne (priorités fixes/dynamiques) ou hors-ligne (table)</td>
+                    </tr>
+                    <tr>
+                        <td>Tâches</td>
+                        <td>Concrètes (réveils connus) ou non-concrètes</td>
+                    </tr>
+                    <tr>
+                        <td>Activations</td>
+                        <td>Périodiques, sporadiques, apériodiques, reliées</td>
+                    </tr>
+                    <tr>
+                        <td>Interdépendances</td>
+                        <td>Indépendantes, précédences, exclusions mutuelles (sections critiques)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="tip-box">
+            C'est le contexte qui détermine si un test (simulation ou test polynomial) est applicable et s'il est viable.
+        </div>
+
+        <h3>Viabilité</h3>
+        <p>Un test d'ordonnançabilité est dit <strong>viable</strong> dans un contexte si la modification d'un paramètre dans le "bon sens" ne peut pas dégrader l'ordonnançabilité.</p>
+        
+        <div class="theorem-box" data-label="Viabilité des tests">
+            <ul>
+                <li><strong>C-viable</strong> : réduire une durée d'exécution $C_i$ n'augmente pas les temps de réponse.</li>
+                <li><strong>T-viable</strong> : augmenter une période $T_i$ n'augmente pas les temps de réponse.</li>
+                <li><strong>r-viable</strong> : augmenter une date de réveil $r_i$ n'augmente pas les temps de réponse.</li>
+            </ul>
+        </div>
+
+        <div class="callout-warning">
+            La simulation <strong>perd sa viabilité</strong> dès lors qu'il existe des facteurs pratiques :
+            <ul>
+                <li>Contraintes de précédence non consistantes avec les priorités.</li>
+                <li>Portions de code non préemptibles ou sections critiques.</li>
+                <li>Suspensions (self-suspension).</li>
+            </ul>
+            Dans ces cas, réduire un $C_i$ peut paradoxalement rendre le système non ordonnançable (anomalies d'ordonnancement).
+        </div>
+
+        <h3>Charge processeur et condition nécessaire</h3>
+        <div class="formula-box">
+            $$U = \sum_{i=1}^{n} \frac{C_i}{T_i}$$
+            <span class="formula-label">Utilisation processeur (Charge)</span>
+        </div>
+        
+        <div class="highlight-box">
+            Condition nécessaire triviale : $U \leq k$ pour $k$ processeurs.
+        </div>
+        <p>Si $U > 1$ sur un monoprocesseur, le système est <strong>certainement non ordonnançable</strong>. Cependant, $U \leq 1$ n'est pas une condition suffisante.</p>
+
+        <h3>Instant critique et pire cas</h3>
+        <div class="highlight-box">
+            L'<strong>instant critique</strong> d'une tâche survient lorsqu'elle est activée simultanément avec toutes les tâches de priorités plus élevées.
+        </div>
+        <p>C'est cet instant qui maximise l'interférence subie par la tâche et permet d'observer son <strong>pire temps de réponse</strong>. Pour des tâches sporadiques, l'instant critique est toujours considéré comme possible.</p>
+        
+        <div class="callout-info">
+            <strong>Cycle d'ordonnancement :</strong> Pour un système synchrone ($r_i = 0$), le comportement se répète tous les $H = \text{PPCM}(T_i)$. La fenêtre de simulation doit couvrir au moins un cycle.
+        </div>
+
+        <h3>Optimalité de Rate Monotonic (RM)</h3>
+        <div class="highlight-box">
+            <strong>Rate Monotonic :</strong> Affecte les priorités de façon inversement proportionnelle à la période $T_i$ (petite période = haute priorité).
+        </div>
+
+        <div class="theorem-box" data-label="Optimalité de RM (Liu & Layland, 1973)">
+            RM est optimal dans la classe des algorithmes à priorités fixes (FTP) si :
+            <ol>
+                <li>Tâches indépendantes et préemptibles.</li>
+                <li>Système monoprocesseur.</li>
+                <li>Existence d'un instant critique (tâches simultanées possibles).</li>
+                <li>Tâches périodiques ou sporadiques.</li>
+                <li>Échéances sur requête : $D_i = T_i$.</li>
+            </ol>
+        </div>
+
+        <h3>Tests polynomiaux pour RM</h3>
+        <p>Ces tests sont des conditions <strong>suffisantes</strong> mais non nécessaires. Ils sont très rapides à calculer.</p>
+        
+        <h4>Borne de Liu & Layland</h4>
+        <div class="formula-box">
+            $$U \leq n(\sqrt[n]{2} - 1)$$
+        </div>
+        <div class="callout-info">
+            Quand $n \to \infty$, cette borne tend vers $\ln(2) \approx 0,693$. Tout système dont la charge est inférieure à 69% est garanti ordonnançable par RM.
+        </div>
+
+        <h4>Borne Hyperbolique</h4>
+        <div class="formula-box">
+            $$\prod_{i=1}^{n} (U_i + 1) \leq 2$$
+        </div>
+        <div class="compare-grid">
+            <div class="compare-item good" data-label="Borne Hyperbolique">
+                Plus puissante (précise) que la borne de L&L. Elle permet de valider des systèmes que L&L rejette.
+            </div>
+            <div class="compare-item neutral" data-label="Borne L&L">
+                Plus simple et immédiate pour une vérification rapide "à la louche".
+            </div>
+        </div>
+
+        <h3>Optimalité de Deadline Monotonic (DM)</h3>
+        <div class="highlight-box">
+            <strong>Deadline Monotonic :</strong> Priorité inversement proportionnelle au délai critique $D_i$ (petit $D_i$ = haute priorité).
+        </div>
+        <div class="theorem-box" data-label="Optimalité de DM (Leung & Whitehead, 1982)">
+            DM est optimal en FTP si $D_i \leq T_i$ (sous les mêmes hypothèses d'indépendance que RM).
+        </div>
+        <div class="tip-box">
+            RM est en fait un cas particulier de DM lorsque $D_i = T_i$.
+        </div>
+
+        <h3>Algorithme d'Audsley (OPA)</h3>
+        <p>Lorsque les conditions d'optimalité de RM ou DM ne sont pas remplies (ex: $D_i > T_i$ ou tâches non simultanées), on utilise l'algorithme <strong>Optimal Priority Assignment</strong>.</p>
+        
+        <div class="algo-block" data-name="Algorithme d'Audsley">
+            Pour chaque niveau de priorité Π allant de n (plus basse) à 1 (plus haute) :
+            Trouver une tâche τ non encore affectée qui respecte ses échéances au niveau Π
+            Si trouvée : Affecter Π à τ, passer au niveau Π-1
+            Sinon : Le système n'est pas ordonnançable en FTP
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card accent">
+                <div class="metric-value">O(n²)</div>
+                <div class="metric-label">Complexité algorithmique</div>
+            </div>
+        </div>
+
+        <div class="callout-info">
+            Pour tester si une tâche τ respecte ses échéances au niveau Π, on peut utiliser la <strong>simulation</strong> en lui affectant Π et en affectant les priorités supérieures $\{1, \dots, \Pi-1\}$ aux autres tâches restantes de manière arbitraire.
+        </div>
+
+        <h3>Limites de la simulation</h3>
+        <div class="compare-grid">
+            <div class="compare-item bad" data-label="Complexité">
+                La durée d'un cycle $PPCM(T_i)$ peut croître de manière exponentielle : $2^n$. La simulation devient impraticable pour de grands systèmes.
+            </div>
+            <div class="compare-item danger" data-label="Perte de validité">
+                Dès qu'il y a des dépendances (précédence, exclusion mutuelle), la simulation ne peut plus valider le système car elle ne garantit plus de tester le pire cas.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

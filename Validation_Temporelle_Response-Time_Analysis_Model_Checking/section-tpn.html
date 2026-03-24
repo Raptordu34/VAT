@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+    <h2>Réseaux de Petri Temporels (TPN)</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>Deux familles</strong> — RdP temporisés (durée fixe par transition) vs RdP temporels (intervalle $[\alpha, \beta]$ par transition) — les TPN sont les plus expressifs pour modéliser l'incertitude</li>
+            <li><strong>Formalisation</strong> — $N = (P, T, W, \alpha, \beta, M_0)$, état défini par le couple $(M, Y)$ où $Y$ est le vecteur d'horloges locales des transitions</li>
+            <li><strong>Sémantique</strong> — Deux types de transitions : <em>continue</em> (le temps avance, les horloges progressent) et <em>discrète</em> (une transition tire, les horloges se réinitialisent)</li>
+            <li><strong>Extensions</strong> — Paramètres, arcs inhibiteurs, stopwatchs (gel d'horloge) — attention : avec inhibiteurs, l'analysabilité n'est plus garantie</li>
+            <li><strong>Applications</strong> — Watchdog, dimensionnement de buffer réseau (AFDX), ordonnancement temps réel, communication sans fil</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <!-- ── FAMILLES ── -->
+        <h3>Familles de RdP à temps</h3>
+
+        <p>
+            Le RdP classique ne modélise pas le temps — une transition peut tirer n'importe quand, sans contrainte temporelle.
+            Pour les systèmes temps réel, il est indispensable d'exprimer des contraintes de durée. Deux grandes familles existent :
+        </p>
+
+        <div class="compare-grid">
+            <div class="compare-item neutral" data-label="RdP temporisés (Timed Petri Nets)">
+                <p>
+                    Chaque transition possède une <strong>durée fixe</strong> de franchissement. Des variantes existent où c'est la place qui possède une durée de rétention du jeton.
+                </p>
+                <p><em>Limite :</em> ne modélise pas l'incertitude — la durée est exactement connue.</p>
+            </div>
+            <div class="compare-item good" data-label="RdP temporels (Time Petri Nets — TPN)">
+                <p>
+                    Chaque transition possède un <strong>intervalle de temps</strong> $[\alpha, \beta]$ dans lequel elle doit être franchie. Très puissants pour modéliser l'incertitude : durées d'exécution de tâches, délais de transmission réseau, etc.
+                </p>
+                <p><em>Avantage :</em> expressivité naturelle pour les systèmes embarqués réels.</p>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <strong>Choix pratique :</strong> Les RdP temporels (TPN, introduits par P. Merlin &amp; D. Farber en 1976) sont privilégiés en ingénierie temps réel car ils capturent directement l'incertitude temporelle inhérente aux systèmes réels.
+        </div>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> L'intervalle $[\alpha, \beta]$ exprime une incertitude sur la durée. Dire qu'une tâche a un intervalle $[2, 5]$ revient à dire « cette tâche durera entre 2 et 5 unités de temps » — comme un bus qui « arrive entre 5 et 10 minutes » plutôt qu'exactement à une heure fixe.
+        </div>
+
+        <!-- ── FORMALISATION ── -->
+        <h3>Formalisation des TPN</h3>
+
+        <div class="highlight-box">
+            <strong>Définition formelle :</strong> Un Réseau de Petri Temporel est un sextuplet $N = (P, T, W, \alpha, \beta, M_0)$ où :
+            <ul>
+                <li>$(P, T, W, M_0)$ — RdP classique sous-jacent</li>
+                <li>$\alpha : T \to \mathbb{Q}^+$ — <strong>date de tir statique au plus tôt</strong> (borne inférieure)</li>
+                <li>$\beta : T \to \mathbb{Q}^+ \cup \{+\infty\}$ — <strong>date de tir statique au plus tard</strong> (borne supérieure)</li>
+                <li>Contrainte : $\alpha(t) \leq \beta(t)$ pour toute transition $t$</li>
+            </ul>
+        </div>
+
+        <div class="formula-box">
+            $$\text{Intervalle de tir statique de } t : [\alpha(t),\, \beta(t)]$$
+            <span class="formula-label">Fenêtre temporelle dans laquelle la transition doit tirer (à partir du moment où elle devient valide)</span>
+        </div>
+
+        <p>
+            <strong>Principe :</strong> à partir de l'instant $\tau$ auquel la transition devient franchissable au sens classique,
+            elle <em>devra</em> être franchie entre les instants $\tau + \alpha(t)$ et $\tau + \beta(t)$ inclus.
+        </p>
+
+        <div class="callout-info">
+            <strong>Cas particuliers importants :</strong>
+            <ul>
+                <li>$[\alpha, \beta] = [0, +\infty]$ — sémantique du RdP classique : la transition peut tirer n'importe quand</li>
+                <li>$[\alpha, \beta] = [0, 0]$ — transition <strong>urgente</strong> : elle doit tirer immédiatement dès qu'elle devient valide</li>
+                <li>$[\alpha, \beta] = [c, c]$ — transition à durée <strong>exactement</strong> $c$ (déterministe)</li>
+            </ul>
+        </div>
+
+        <!-- ── SÉMANTIQUE ── -->
+        <h3>Sémantique des TPN</h3>
+
+        <div class="highlight-box">
+            <strong>État d'un TPN :</strong> L'état est défini par le couple $(M, Y)$ où :
+            <ul>
+                <li>$M \in \mathbb{N}^{|P|}$ — le marquage courant</li>
+                <li>$Y \in \mathbb{R}^{|T|}$ — le vecteur des <strong>horloges locales</strong> de transitions ($Y(t)$ mesure le temps écoulé depuis que $t$ est devenue valide ; non défini si $t$ n'est pas valide)</li>
+            </ul>
+        </div>
+
+        <p>L'évolution d'un TPN combine deux types de transitions :</p>
+
+        <h4>Transition continue — l'écoulement du temps</h4>
+
+        <p>
+            Le temps avance d'un délai $d \in \mathbb{R}_{\geq 0}$. Toutes les horloges progressent simultanément,
+            dans la limite de leur date de tir au plus tard :
+        </p>
+
+        <div class="formula-box">
+            $$(M, Y) \xrightarrow{d} (M,\; Y + d) \quad \text{avec} \quad \forall t \in \text{Valide}(M),\; Y(t) + d \leq \beta(t)$$
+            <span class="formula-label">Transition continue : le temps s'écoule de $d$ unités</span>
+        </div>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Imaginez plusieurs chronomètres lancés en même temps — le temps avance pour tous simultanément. La contrainte $Y(t) + d \leq \beta(t)$ signifie qu'on ne peut pas laisser le temps passer au point qu'une transition rate sa fenêtre de tir.
+        </div>
+
+        <h4>Transition discrète — le franchissement</h4>
+
+        <p>
+            Une transition $t$ est <strong>franchissable</strong> si elle est valide au sens classique <em>et</em> son horloge locale a atteint sa date de tir au plus tôt :
+        </p>
+
+        <div class="formula-box">
+            $$(M, Y) \xrightarrow{t} (M', Y') \quad \text{avec } Y(t) \geq \alpha(t)$$
+            <span class="formula-label">Condition de tir : l'horloge locale doit avoir atteint la borne inférieure</span>
+        </div>
+
+        <p>Après le franchissement de $t$ :</p>
+        <ul>
+            <li>Le marquage est mis à jour : $M' = M - \text{Pré}(t) + \text{Post}(t)$</li>
+            <li>Les horloges des transitions <strong>nouvellement valides</strong> sont réinitialisées à 0</li>
+            <li>Les autres horloges (transitions déjà valides) sont conservées</li>
+        </ul>
+
+        <h4>Notion de « nouvellement valide »</h4>
+
+        <div class="highlight-box">
+            <strong>Définition :</strong> Une transition $t_k$ est <strong>nouvellement valide</strong> après le franchissement de $t_i$ si et seulement si :
+            <ul>
+                <li>$t_k$ n'était pas valide avant le franchissement ($t_k \notin \text{Valide}(M - \text{Pré}(t_i))$) mais est valide après ($t_k \in \text{Valide}(M')$), <strong>OU</strong></li>
+                <li>$t_k = t_i$ (la transition qui vient de tirer est elle-même réinitialisée si elle reste valide)</li>
+            </ul>
+            Initialement, toute transition valide est nouvellement valide.
+        </div>
+
+        <div class="callout-warning">
+            <strong>Subtilité :</strong> Une transition déjà valide avant et après le franchissement d'une autre transition <em>conserve</em> son horloge locale — elle n'est pas réinitialisée. Seules les transitions qui « deviennent » valides lors du franchissement sont remises à zéro.
+        </div>
+
+        <h4>Séquence complète</h4>
+
+        <p>Une transition temporisée est la composition d'une transition continue suivie d'une transition discrète :</p>
+
+        <div class="formula-box">
+            $$(M, Y) \xrightarrow{d} (M, Y+d) \xrightarrow{t} (M', Y') \quad \text{noté} \quad (M, Y) \xrightarrow{d,t} (M', Y')$$
+            <span class="formula-label">Transition temporisée complète : attente puis franchissement</span>
+        </div>
+
+        <!-- ── EXEMPLE ── -->
+        <h3>Exemple détaillé pas à pas</h3>
+
+        <p>
+            Considérons un TPN avec deux places $P_1$ et $P_2$, deux transitions $T_1[2,2]$ et $T_2[1,3]$,
+            avec le marquage initial $M_0 = [1, 2]$ (1 jeton dans $P_1$, 2 dans $P_2$).
+            $T_1$ est une boucle sur $P_1$ (consomme et remet un jeton dans $P_1$, produit dans $P_2$) ;
+            $T_2$ consomme $P_2$ et produit $P_1$.
+        </p>
+
+        <ul class="steps">
+            <li><strong>État initial :</strong> $(M, Y) = ([1,2],\, [0, 0])$ — $T_1$ et $T_2$ sont valides, horloges à 0</li>
+            <li><strong>Transition continue $d = 1{,}5$ :</strong> $(M, Y+1{,}5) = ([1,2],\, [1{,}5,\; 1{,}5])$ — $T_2$ peut tirer car $Y(T_2) = 1{,}5 \geq \alpha(T_2) = 1$</li>
+            <li><strong>Transition discrète $T_2$ :</strong> $M' = [1,1]$, $T_2$ est nouvellement valide → $Y'(T_2) = 0$, $Y'(T_1) = 1{,}5$ (conservée). État : $([1,1],\, [1{,}5,\; 0])$</li>
+            <li><strong>Transition continue $d = 0{,}5$ :</strong> $([1,1],\, [2,\; 0{,}5])$ — maintenant $Y(T_1) = 2 = \alpha(T_1) = \beta(T_1)$ : $T_1$ doit tirer !</li>
+            <li><strong>Transition discrète $T_1$ :</strong> $M'' = [0,1]$, $T_1$ n'est plus valide (non défini), $T_2$ nouvellement valide → $Y''(T_2) = 0$. État : $([0,1],\, [\varnothing,\; 0])$</li>
+            <li><strong>Transition continue $d = 3$ :</strong> $([0,1],\, [\varnothing,\; 3])$ — $T_2$ peut tirer car $Y(T_2) = 3 \leq \beta(T_2) = 3$</li>
+            <li><strong>Transition discrète $T_2$ :</strong> $M''' = [0,0]$, plus aucune transition valide. État final : $([0,0],\, [\varnothing,\; \varnothing])$</li>
+        </ul>
+
+        <div class="tip-box">
+            <strong>À retenir :</strong> Les horloges des transitions <em>non valides</em> n'ont pas besoin d'être suivies (notées $\varnothing$ ou « Non défini »). Seules les transitions valides ont une horloge active.
+        </div>
+
+        <!-- ── WATCHDOG ── -->
+        <h3>Modélisation de chiens de garde (watchdog)</h3>
+
+        <p>
+            Un <strong>watchdog</strong> (chien de garde) est un mécanisme de surveillance utilisé dans les systèmes embarqués.
+            Il attend d'être périodiquement <em>réinitialisé</em> par le processus surveillé.
+            Si le watchdog n'est pas réinitialisé dans le délai imparti, il déclenche une alarme ou un redémarrage.
+        </p>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Un watchdog est comme un minuteur de cuisine que le cuisinier doit réarmer régulièrement. S'il oublie de le faire (parce qu'il s'est évanoui), l'alarme sonne pour prévenir qu'il y a un problème.
+        </div>
+
+        <p>Le modèle TPN d'un watchdog se compose de :</p>
+        <ul>
+            <li><strong>Transition $T_{\text{ok}}[0,0]$</strong> — le processus se termine correctement et instantanément réinitialise le watchdog</li>
+            <li><strong>Transition $T_{\text{erreur}}[1,1]$</strong> — si le processus ne termine pas dans le délai, le watchdog déclenche l'alarme</li>
+            <li>Places <strong>Alarme</strong> et <strong>Ok</strong> représentant l'état du système observé</li>
+        </ul>
+
+        <p>
+            Ce modèle utilise une structure d'<strong>observateur</strong> : une place supplémentaire permet de « surveiller » le comportement du système sans interférer avec lui.
+        </p>
+
+        <!-- ── PARAMÉTRIQUE ── -->
+        <h3>TPN paramétriques</h3>
+
+        <p>
+            Dans un TPN paramétrique, les bornes des intervalles de tir peuvent être des <strong>paramètres</strong> inconnus
+            plutôt que des valeurs fixes. Cela permet de poser des questions du type :
+            « Pour quelles valeurs du paramètre $a$ le système satisfait-il cette propriété de sûreté ? »
+        </p>
+
+        <div class="highlight-box">
+            <strong>Définition :</strong> On ajoute à la définition du TPN :
+            <ul>
+                <li>$\text{Par} = \{\lambda_1, \lambda_2, \ldots, \lambda_l\}$ — ensemble de paramètres</li>
+                <li>$D_{\text{Par}} \subseteq \mathbb{Q}^{+|\text{Par}|}$ — <strong>polyèdre convexe</strong> contraignant les domaines des paramètres</li>
+            </ul>
+            Les intervalles de tir sont alors de la forme $[\alpha(t), \beta(t)]$ où $\alpha(t)$ ou $\beta(t)$ peut être un paramètre.
+        </div>
+
+        <div class="tip-box">
+            <strong>Exemple concret (TD ex.4 — watchdog) :</strong> On cherche le délai maximal entre l'occurrence d'une panne et la fin du traitement par le watchdog. On paramètre l'intervalle de tir du watchdog par $a$ et on cherche la valeur minimale de $a$ garantissant la propriété. Résultat dans Romeo : $a \in [107, +\infty[$, donc il faut prévoir au moins 107 unités de temps.
+        </div>
+
+        <!-- ── INHIBITEURS ── -->
+        <h3>Arcs inhibiteurs et stopwatchs</h3>
+
+        <h4>Inhibiteur logique</h4>
+        <p>
+            Un <strong>arc inhibiteur logique</strong> (symbole de cercle creux) rend une transition <em>non valide</em> si la place en amont est marquée.
+            Dès que la place est vide, la transition redevient potentiellement valide.
+        </p>
+
+        <h4>Inhibiteur stopwatch</h4>
+        <p>
+            Un <strong>arc inhibiteur stopwatch</strong> va plus loin : la transition est non valide si la place amont est marquée,
+            <em>mais l'horloge locale est conservée</em> (« gelée ») au lieu d'être réinitialisée.
+        </p>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Le stopwatch est comme mettre un chronomètre en pause. Quand on le reprend (quand la place amont se vide), il continue exactement là où il s'était arrêté — il ne repart pas de zéro. Cela modélise une tâche préemptée qui reprend son exécution là où elle l'avait laissée.
+        </div>
+
+        <p><strong>Exemple du cours :</strong> $T_2[2,3]$ avec stopwatch sur $P_2$.</p>
+        <ul>
+            <li>Si $T_1$ tire au bout de 1 unité de temps, $P_2$ est marquée, et l'horloge de $T_2$ vaut 1 — l'intervalle effectif devient $[1, 2]$</li>
+            <li>Quand $T_3$ tire (dégelant $T_2$), $T_2$ reprend son compte et peut tirer entre 1 et 2 unités plus tard</li>
+            <li>$T_2$ n'est pas <em>nouvellement valide</em> lors du dégel — son horloge locale n'est pas réinitialisée</li>
+        </ul>
+
+        <p>On peut mettre des <strong>poids</strong> sur les inhibiteurs et stopwatchs — ils jouent leur rôle inhibiteur si la place amont est marquée par au moins $k$ jetons (avec $k$ = poids de l'arc).</p>
+
+        <!-- ── ANALYSABILITÉ ── -->
+        <h3>Analysabilité et décidabilité</h3>
+
+        <div class="callout-danger">
+            <strong>Résultat général :</strong> L'accessibilité d'un TPN avec paramètres <em>et</em> inhibiteurs n'est <strong>pas décidable</strong> dans le cas général. On ne peut pas garantir de terminer l'analyse.
+        </div>
+
+        <div class="highlight-box">
+            <strong>Condition de décidabilité :</strong> Si les paramètres apparaissent uniquement en tant que borne inférieure <em>ou</em> supérieure d'un intervalle de tir statique, et qu'aucun paramètre n'est à la fois borne inférieure et supérieure de deux intervalles différents, alors l'accessibilité est décidable. On peut construire un <strong>graphe de classes paramétrique</strong> sur un principe similaire au graphe de classes.
+        </div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type de TPN</th>
+                        <th>Accessibilité</th>
+                        <th>Propriétés LTL/CTL*</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>TPN classique (sans paramètre ni inhibiteur)</strong></td>
+                        <td><span class="badge badge-green">Décidable</span></td>
+                        <td><span class="badge badge-green">Préservées (graphe de classes)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>TPN paramétrique (conditions respectées)</strong></td>
+                        <td><span class="badge badge-green">Décidable</span></td>
+                        <td><span class="badge badge-orange">Partiellement préservées</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>TPN + inhibiteurs (cas général)</strong></td>
+                        <td><span class="badge badge-red">Indécidable</span></td>
+                        <td><span class="badge badge-red">Non garanties</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── APPLICATIONS ── -->
+        <h3>Applications pratiques</h3>
+
+        <h4>Dimensionnement de buffer réseau (TD ex. 4 — AFDX)</h4>
+        <p>
+            Le réseau avionique ARINC 664p7 (AFDX) transporte des messages via des <em>virtual links</em> (VL).
+            Chaque VL a un délai minimal entre deux envois successifs : le <strong>BAG</strong> (Bandwidth Allocation Gap).
+            On modélise chaque VL par une source périodique dans un TPN, et on cherche par <strong>dichotomie</strong>
+            le marquage maximal de la place tampon en sortie de switch — ce qui donne la taille mémoire à prévoir.
+        </p>
+        <div class="callout-info">
+            <strong>Choix d'unité :</strong> Romeo ne supporte que des entiers pour les intervalles de tir. Si les durées sont en µs avec des fractions, on multiplie toutes les durées par un facteur commun pour travailler en entiers.
+        </div>
+
+        <h4>Ordonnancement à priorités fixes (TD ex. 5 — tâches indépendantes)</h4>
+        <p>
+            On modélise un système de trois tâches périodiques ($\tau_1\langle 2, 10\rangle$, $\tau_2\langle 2, 12\rangle$, $\tau_3\langle 3, 10\rangle$)
+            avec ordonnancement <strong>RM</strong> (Rate Monotonic) par un TPN. Chaque tâche est une place-période → transition-activation → place-travail → transition-fin.
+            La formule <strong>ParamTPN-PTCTL</strong> permet de calculer automatiquement le pire temps de réponse de chaque tâche.
+        </p>
+        <div class="tip-box">
+            <strong>Intérêt :</strong> Pour des tâches indépendantes, la RTA donne le même résultat mais de façon plus simple. L'intérêt du TPN apparaît avec les <em>dépendances</em> (exclusion mutuelle, contraintes de précédence) où la RTA classique ne s'applique plus directement.
+        </div>
+
+        <h4>Communication sans fil drone (TD ex. 6)</h4>
+        <p>
+            Trois messages périodiques ($m_1$ : 3 ms / 10 ms, $m_2$ : 6 ms / 20 ms, $m_3$ : 15 ms / 30 ms) partagent
+            une seule liaison radio. La politique <strong>non préemptive conservative</strong> est modélisée par une place « canal libre »
+            (mutex), que le message « réserve » dès qu'il est prêt et libère à la fin de son émission.
+            La formule Romeo exprime le <strong>pire temps de réponse</strong> de chaque message.
+        </p>
+
+        <div class="tip-box">
+            <strong>Outil :</strong> <strong>Romeo</strong> (développé au LIAS/ISAE-ENSMA) est l'outil de référence pour la modélisation graphique, la simulation et l'analyse automatique des TPN paramétriques. Il implémente le graphe de classes paramétrique et supporte les formules ParamTPN-PTCTL.
+        </div>
+
+    </div>
+</body>
+</html>

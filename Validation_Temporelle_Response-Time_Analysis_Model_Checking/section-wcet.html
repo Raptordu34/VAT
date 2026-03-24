@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+
+    <h2>Analyse WCET</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>WCET (Worst-Case Execution Time)</strong> — borne supérieure garantie du temps d'exécution d'un programme sur un matériel donné ; le BCET est la borne inférieure.</li>
+            <li><strong>4 facteurs clés</strong> — instructions du programme, vitesse du CPU, état interne (pipelines), état du cache mémoire (1–2 cycles vs 3–10 vs &gt;10 000 cycles).</li>
+            <li><strong>Analyse statique</strong> — sûre (jamais optimiste) mais pessimiste ; nécessite un modèle précis de l'architecture ; outils : OTAWA, aiT, Heptane.</li>
+            <li><strong>Analyse dynamique</strong> — mesures réelles mais non sûre (couverture incomplète) ; variantes : mixte avec couverture, WCET probabiliste.</li>
+            <li><strong>OTAWA</strong> — framework open-source (IRIT) : décode le binaire, construit le CFG, abstrait le matériel, calcule les bornes cycle par bloc de base.</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <!-- ── FACTEURS ── -->
+        <h3>Facteurs influençant le temps d'exécution</h3>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Comme un trajet en voiture, le temps d'exécution dépend de la route choisie (le chemin dans le code), du véhicule (le processeur), et du trafic (état du cache, charge système). Même trajet, temps différent selon les conditions.
+        </div>
+
+        <p>Le temps d'exécution d'un programme n'est <em>pas</em> une constante : il varie selon quatre dimensions indépendantes.</p>
+
+        <ul>
+            <li><strong>Instructions élémentaires</strong> — la séquence d'instructions exécutées dépend des données d'entrée (branches conditionnelles, boucles). Différents chemins d'exécution → différentes durées.</li>
+            <li><strong>Processeur et sa fréquence</strong> — sur un microcontrôleur simple, chaque instruction prend effectivement 1 cycle : fréquence 2× = exécution 2× plus rapide. Sur un microprocesseur moderne, ce modèle naïf est totalement faux.</li>
+            <li><strong>État interne du processeur</strong> — les pipelines permettent l'exécution simultanée de plusieurs instructions. Un <em>pipeline stall</em> (dépendance de données, branchement mal prédit) interrompt ce parallélisme et allonge le temps.</li>
+            <li><strong>État de la mémoire cache</strong> — l'accès à une instruction ou à une donnée peut prendre des ordres de grandeur très différents selon qu'elle est en cache ou non.</li>
+        </ul>
+
+        <div class="metrics-grid">
+            <div class="metric-card good">
+                <span class="metric-value">1–2</span>
+                <span class="metric-label">cycles · Cache L1/L2</span>
+            </div>
+            <div class="metric-card accent">
+                <span class="metric-value">3–10</span>
+                <span class="metric-label">cycles · RAM (DRAM)</span>
+            </div>
+            <div class="metric-card bad">
+                <span class="metric-value">&gt;10 000</span>
+                <span class="metric-label">cycles · Swap (disque)</span>
+            </div>
+        </div>
+
+        <div class="callout-warning">
+            <strong>Attention — idée reçue :</strong> "Doubler la fréquence du CPU divise par deux le temps d'exécution." Ceci est vrai sur un microcontrôleur ancien (1 instruction = 1 cycle) mais <strong>totalement faux</strong> sur un microprocesseur moderne avec caches et pipelines. Les accès mémoire hors cache ne s'accélèrent pas proportionnellement à la fréquence.
+        </div>
+
+        <div class="highlight-box">
+            <strong>Définitions :</strong><br>
+            <strong>WCET</strong> <span class="badge badge-red">Worst-Case Execution Time</span> — borne supérieure du temps d'exécution : le programme ne peut pas prendre <em>plus</em> longtemps que cette valeur sur le matériel considéré.<br><br>
+            <strong>BCET</strong> <span class="badge badge-green">Best-Case Execution Time</span> — borne inférieure : le programme ne peut pas terminer <em>plus tôt</em> que cette valeur.<br><br>
+            Ces bornes dépendent du programme <em>et</em> du matériel cible — un même binaire a un WCET différent sur un ARM Cortex-M4 et sur un x86.
+        </div>
+
+        <!-- ── MÉTHODES ── -->
+        <h3>Méthodes d'analyse du WCET</h3>
+
+        <p>Il existe deux grandes familles de méthodes, chacune avec ses compromis entre <em>sûreté</em> (garantie que le WCET n'est pas sous-estimé) et <em>précision</em> (absence de pessimisme excessif).</p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <strong>Analyse statique</strong> <span class="badge badge-blue">Sûre</span><br>
+                Analyse le code binaire <em>sans l'exécuter</em>. Construit un modèle abstrait du programme et du matériel. Calcule une borne garantie supérieure.<br><br>
+                Outils : <code>OTAWA</code>, <code>aiT</code>, <code>RapiTime</code>, <code>Heptane</code>
+            </div>
+            <div class="highlight-box">
+                <strong>Analyse dynamique</strong> <span class="badge badge-orange">Non sûre</span><br>
+                Instrumente le code et mesure de nombreuses exécutions réelles. Produit une distribution empirique des temps d'exécution.<br><br>
+                Outils : compteurs matériels (PAPI), analyseurs logiques, <code>clock_gettime</code>
+            </div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-item good" data-label="Statique — avantages">
+                <p>Garantie mathématique : le WCET calculé est une borne supérieure réelle. Fonctionne sans exécuter le programme. Détecte le pire chemin même s'il est rarement emprunté.</p>
+            </div>
+            <div class="compare-item bad" data-label="Statique — limites">
+                <p>Nécessite un modèle précis de l'architecture (souvent indisponible pour les CPU modernes). Pessimiste : toute inconnue sur l'état du cache ou du pipeline est modélisée de façon conservative → surestimation parfois importante.</p>
+            </div>
+            <div class="compare-item good" data-label="Dynamique — avantages">
+                <p>Applicable à n'importe quelle architecture sans modèle formel. Mesures précises sur le vrai matériel cible. Facile à mettre en œuvre avec des outils standard.</p>
+            </div>
+            <div class="compare-item bad" data-label="Dynamique — limites">
+                <p>Non sûre : il est impossible de couvrir tous les chemins et états internes possibles. Le pire cas réel peut ne jamais être mesuré. Ne convient pas pour les systèmes critiques (avionique, médical).</p>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <strong>Solutions intermédiaires :</strong>
+            <ul>
+                <li><strong>Mixte avec couverture</strong> — combine mesures dynamiques et analyse de couverture de code pour borner le risque de manquer le pire chemin.</li>
+                <li><strong>WCET probabiliste (pWCET)</strong> — utilise la théorie des valeurs extrêmes pour extrapoler une distribution cumulative (CDF) et donner un WCET avec une probabilité de dépassement donnée (ex : $10^{-9}$ par heure pour l'avionique).</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box">
+            <strong>Notion de sûreté :</strong> Une analyse est <em>sûre</em> si elle garantit que le WCET calculé est une borne supérieure du temps d'exécution réel — c'est-à-dire qu'elle ne sous-estime jamais. L'analyse statique est sûre mais pessimiste ; l'analyse dynamique est précise mais non sûre. Pour les systèmes temps-réel critiques, seule l'analyse statique est acceptable.
+        </div>
+
+        <!-- ── OTAWA ── -->
+        <h3>Analyse statique avec OTAWA</h3>
+
+        <p>OTAWA (<em>Open Tool for Adaptive WCET Analysis</em>) est un framework d'analyse statique développé à l'IRIT (Institut de Recherche en Informatique de Toulouse). Il est open-source et extensible via des plugins.</p>
+
+        <div class="highlight-box">
+            <strong>Principe de fonctionnement d'OTAWA :</strong>
+            <ol>
+                <li>Décode le <strong>binaire</strong> du programme (ELF ARM) — pas le source C.</li>
+                <li>Construit le <strong>CFG</strong> (Control Flow Graph — graphe de flot de contrôle) : graphe orienté où chaque nœud est un bloc de base (séquence d'instructions sans branchement), et les arêtes représentent les branchements possibles.</li>
+                <li>Abstrait finement le <strong>matériel</strong> : modèle du pipeline, politiques de cache, latences des instructions.</li>
+                <li>Combine CFG + modèle matériel pour borner le nombre d'exécutions de chaque bloc de base et le temps (nombre de cycles) de chacun → <strong>WCET = chemin critique dans le CFG pondéré</strong>.</li>
+            </ol>
+        </div>
+
+        <div class="callout-info">
+            <strong>Cible matérielle du TD :</strong> Microcontrôleur <strong>ARM LPC2138</strong> (NXP). Architecture ARMv4, processeur simple sans cache de données, pipeline 3 étages. Ce modèle est directement disponible dans OTAWA (<code>-s lpc2138</code>), ce qui rend l'analyse précise pour cette cible.
+        </div>
+
+        <h4>Préparation de l'environnement</h4>
+
+        <p>OTAWA et la chaîne de compilation croisée ARM sont fournis dans une image Docker. Les commandes de démarrage diffèrent selon l'OS hôte.</p>
+
+        <div class="terminal">
+            <code><span class="comment"># Sous Linux</span>
+<span class="prompt">$</span> xhost +local:
+<span class="prompt">$</span> docker run -it --rm -e DISPLAY=:0.0 --net=host registry-ia.ensma.fr/svtr /bin/bash
+
+<span class="comment"># Sous Windows avec WSL2</span>
+<span class="prompt">$</span> docker run -it --rm \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -e DISPLAY -e WAYLAND_DISPLAY \
+    -e XDG_RUNTIME_DIR -e PULSE_SERVER \
+    --net=host registry-ia.ensma.fr/svtr /bin/bash</code>
+        </div>
+
+        <h4>Utilisation d'OTAWA — étapes</h4>
+
+        <ul class="steps">
+            <li><strong>Visualiser le programme source</strong> — comprendre la structure de <code>binary_search</code> dans <code>bs.c</code> (tableau de 15 éléments, recherche dichotomique).<br>
+                <pre><code>cd wcet ; cat bs.c</code></pre>
+            </li>
+            <li><strong>Compilation croisée ARM</strong> — produire un binaire ELF ARM sans libc, avec symboles de debug (<code>-g3</code>), sans protection de pile, pour architecture ARMv4.<br>
+                <pre><code>arm-linux-gnueabi-gcc -g3 -fno-stack-protector -marm -march=armv4 \
+    -o bs.elf bs.c -nostartfiles -static -T link-flash.ld</code></pre>
+            </li>
+            <li><strong>Premier lancement d'OTAWA</strong> — OTAWA signale qu'il ne connaît pas la borne de boucle de <code>binary_search</code> et ne peut pas conclure.<br>
+                <pre><code>owcet -s lpc2138 bs.elf</code></pre>
+            </li>
+            <li><strong>Déterminer la borne de boucle N</strong> — pour un tableau de 15 éléments, la recherche dichotomique fait au plus $\lceil \log_2(15+1) \rceil = 4$ itérations. Générer et éditer le fichier <em>flowfact</em> :<br>
+                <pre><code>mkff bs.elf &gt; bs.ff
+# Remplacer '?' par 4 dans bs.ff</code></pre>
+            </li>
+            <li><strong>Lancer owcet avec les flow facts</strong> — obtenir le WCET en cycles pour le microcontrôleur LPC2138.<br>
+                <pre><code>owcet -s lpc2138 bs.elf -f bs.ff</code></pre>
+            </li>
+            <li><strong>Vérification automatique avec orange</strong> — l'outil <code>orange</code> d'OTAWA peut déterminer automatiquement les bornes de boucle par analyse statique du source C.<br>
+                <pre><code>orange bs.c main -o bs.ffx</code></pre>
+            </li>
+            <li><strong>Génération des statistiques et visualisation du CFG</strong> — <code>obviews.py</code> affiche le CFG annoté avec les contributions WCET de chaque bloc de base.<br>
+                <pre><code>owcet -s lpc2138 bs.elf --stats -S
+obviews.py bs main</code></pre>
+            </li>
+        </ul>
+
+        <div class="tip-box">
+            <strong>Calcul de la borne de boucle N :</strong> Pour un tableau de $n$ éléments, la recherche dichotomique divise l'intervalle de recherche par 2 à chaque itération. Le nombre maximal d'itérations est $N = \lceil \log_2(n+1) \rceil$. Pour $n = 15$ : $\log_2(16) = 4$ itérations exactement. C'est la valeur à inscrire dans le fichier <code>bs.ff</code>.
+        </div>
+
+        <div class="callout-info">
+            <strong>Outil <code>orange</code> :</strong> Orange effectue une analyse de valeurs sur le code C source pour déterminer automatiquement les bornes de boucle. C'est utile en pratique, mais il peut échouer sur des bornes dépendant des données d'entrée. Dans ce cas, l'annotation manuelle dans le fichier <code>.ff</code> reste nécessaire.
+        </div>
+
+        <div class="callout-warning">
+            <strong>Impact de l'optimisation compilateur :</strong> Recompiler avec <code>-O1</code> puis relancer owcet produit un WCET différent — généralement inférieur, car le compilateur supprime des instructions redondantes, simplifie des boucles, et améliore l'utilisation du pipeline. Cela illustre que le WCET est une propriété du <em>binaire</em>, pas du source C.
+        </div>
+
+        <!-- ── ANALYSE DYNAMIQUE ── -->
+        <h3>Analyse dynamique</h3>
+
+        <p>Quand le modèle de l'architecture cible n'est pas disponible pour un analyseur statique (cas fréquent pour les CPU x86/ARM modernes avec caches multiniveaux et prédiction de branchement), on se rabat sur l'analyse dynamique : instrumenter le code et mesurer de nombreuses exécutions.</p>
+
+        <div class="callout-danger">
+            <strong>Limite fondamentale :</strong> L'analyse dynamique est <strong>non sûre</strong>. Il est mathématiquement impossible de garantir qu'on a observé le pire cas — le chemin le plus lent peut nécessiter une combinaison très rare de données d'entrée et d'état de cache. Une mesure dynamique donne une <em>estimation</em>, jamais une <em>borne garantie</em>.
+        </div>
+
+        <h4>Variations observées lors des mesures</h4>
+
+        <p>En compilant et exécutant <code>bs.c</code> plusieurs fois sur le même PC, les temps mesurés varient. Plusieurs phénomènes expliquent ces variations :</p>
+
+        <div class="compare-grid">
+            <div class="compare-item neutral" data-label="État du cache">
+                <p>À la première exécution, le code et les données ne sont pas en cache (cold start). Les accès suivants bénéficient du cache chaud → exécutions plus rapides.</p>
+            </div>
+            <div class="compare-item neutral" data-label="Pipeline et prédiction">
+                <p>L'état du pipeline et du prédicteur de branchements varie entre exécutions. Un branchement mal prédit coûte plusieurs cycles de pénalité.</p>
+            </div>
+            <div class="compare-item neutral" data-label="Ordonnanceur OS">
+                <p>Sur un OS à usage général (Linux, Windows), d'autres processus peuvent préempter l'exécution. Des interruptions matérielles (timer, réseau) ajoutent des latences non déterministes.</p>
+            </div>
+        </div>
+
+        <h4>Effet de la taille de la boucle sur la moyenne</h4>
+
+        <div class="callout-info">
+            <strong>Observation :</strong> En passant l'indice de fin de boucle <code>for</code> de 10 à 100, puis à 1000, la <em>durée moyenne par itération</em> diminue. Explication : pour les petites valeurs (10 itérations), le coût fixe de démarrage (chargement du code en cache, initialisation du pipeline) représente une fraction importante du temps total. Pour 1000 itérations, ce coût est amorti sur toutes les itérations → la durée moyenne par itération se rapproche du régime permanent (cache chaud, pipeline stable).
+        </div>
+
+        <div class="tip-box">
+            <strong>Bonnes pratiques pour l'analyse dynamique :</strong>
+            <ul>
+                <li>Effectuer un <em>warm-up</em> : exécuter le code une fois avant de mesurer pour chauffer le cache.</li>
+                <li>Répéter les mesures (plusieurs centaines d'exécutions) et conserver le maximum observé — pas la moyenne.</li>
+                <li>Utiliser des compteurs matériels (<code>PAPI</code>, <code>perf</code>) pour mesurer directement les cycles CPU, plus précis que les horloges logicielles.</li>
+                <li>Désactiver les optimisations dynamiques du CPU (Turbo Boost, C-states) pour réduire la variabilité.</li>
+            </ul>
+        </div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Méthode</th>
+                        <th>Sûreté</th>
+                        <th>Précision</th>
+                        <th>Besoin modèle archi</th>
+                        <th>Usage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Statique (OTAWA, aiT)</strong></td>
+                        <td><span class="badge badge-green">Sûre</span></td>
+                        <td><span class="badge badge-orange">Pessimiste</span></td>
+                        <td>Indispensable</td>
+                        <td>Systèmes critiques (avionique, automobile)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dynamique (mesures)</strong></td>
+                        <td><span class="badge badge-red">Non sûre</span></td>
+                        <td><span class="badge badge-green">Précise</span></td>
+                        <td>Inutile</td>
+                        <td>Prototypage, systèmes non critiques</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mixte (couverture)</strong></td>
+                        <td><span class="badge badge-orange">Partielle</span></td>
+                        <td><span class="badge badge-blue">Bonne</span></td>
+                        <td>Partiel</td>
+                        <td>Systèmes semi-critiques</td>
+                    </tr>
+                    <tr>
+                        <td><strong>pWCET probabiliste</strong></td>
+                        <td><span class="badge badge-blue">Statistique</span></td>
+                        <td><span class="badge badge-green">Très bonne</span></td>
+                        <td>Inutile</td>
+                        <td>Systèmes critiques avec EVT</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── BIBLIOGRAPHIE ── -->
+        <h3>Bibliographie</h3>
+        <p class="source">Wilhelm, R. et al. (2008). The worst-case execution-time problem — overview of methods and survey of tools. <em>ACM Trans. Embed. Comput. Syst.</em>, vol. 7, n° 3, p. 36:1–36:53. doi: 10.1145/1347375.1347389</p>
+
+    </div>
+
+</body>
+</html>

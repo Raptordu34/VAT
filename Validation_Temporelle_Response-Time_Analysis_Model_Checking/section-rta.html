@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+    <h2>Analyse RTA (Response-Time Analysis)</h2>
+    
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>RTA</strong> — Calcul itératif de point fixe du pire temps de réponse (complexité <span class="badge">pseudo-polynomiale</span>).</li>
+            <li><strong>Cadre théorique</strong> — Repose sur les concepts de <em>période d'activité</em> et d'<em>instant critique</em>.</li>
+            <li><strong>Généralisation</strong> — La formule de Lehoczky gère plusieurs instances dans une même période d'activité (si $TR_i > T_i$).</li>
+            <li><strong>Exclusions mutuelles</strong> — Intégration d'un facteur de blocage $B_i$ via les protocoles PIP, PCP ou Immediate-PCP.</li>
+            <li><strong>Précédence</strong> — Prise en compte de la gigue d'activation $J_i$ (jitter) pour les tâches dépendantes.</li>
+        </ul>
+    </div>
+
+    <div class="detailed-content">
+        <h3>Motivation et contexte</h3>
+        <p>L'analyse par simulation (ordonnancement réel) présente une complexité exponentielle. À l'inverse, les conditions suffisantes (comme la borne de Liu & Layland) sont souvent trop restrictives.</p>
+        
+        <div class="callout-info">
+            La <strong>RTA</strong> se situe comme un "raccourci intelligent" : elle fournit une <strong>Condition Nécessaire et Suffisante (CNS)</strong> pour les systèmes à échéances sur requête, avec une complexité maîtrisée (<span class="badge">NP-difficile au sens faible</span>).
+        </div>
+
+        <h3>Concepts fondamentaux</h3>
+        
+        <h4>Période d'activité de niveau $i$</h4>
+        <div class="highlight-box">
+            Intervalle de temps $[0, L_i[$ durant lequel le processeur est continuellement occupé par des tâches de priorité supérieure ou égale à $\tau_i$.
+        </div>
+        <p>Intuitivement, c'est la durée pendant laquelle $\tau_i$ "attend son tour" ou est en cours d'exécution sans que le CPU ne devienne inactif pour ce niveau de priorité.</p>
+
+        <h4>Point creux et instant critique</h4>
+        <div class="theorem-box">
+            <strong>Théorème de l'instant critique (Liu & Layland, 1973)</strong> : Le pire temps de réponse d'une tâche est obtenu lorsqu'elle est activée simultanément avec toutes les tâches de plus haute priorité (instant critique $t=0$).
+        </div>
+        <div class="theorem-box">
+            <strong>Théorème d'Audsley (1991)</strong> : Le pire temps de réponse se trouve toujours dans la première période d'activité suivant l'instant critique.
+        </div>
+        <div class="tip-box">
+            <strong>Méthode pratique</strong> : Pour tester la viabilité d'une tâche, il suffit d'analyser sa première période d'activité après un instant critique.
+        </div>
+
+        <h3>Formule RTA de base (Joseph & Pandya, 1986)</h3>
+        <p>Le temps de réponse $w_i$ d'une tâche $\tau_i$ est la somme de son temps d'exécution $C_i$ et des interférences causées par les tâches prioritaires $hp(i)$.</p>
+        
+        <div class="formula-box">
+            $$w_i^{n+1} = C_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i^n}{T_j} \right\rceil C_j$$
+        </div>
+        
+        <p>C'est une équation de <strong>point fixe</strong>. On commence avec $w_i^0 = C_i$ et on itère jusqu'à convergence ($w_i^{n+1} = w_i^n$).</p>
+        
+        <div class="callout-warning">
+            Si la charge $U > 1$, le calcul peut ne jamais converger. La condition d'arrêt est soit le point fixe, soit le dépassement de l'échéance $D_i$.
+        </div>
+
+        <div class="algo-block">
+            <strong>Algorithme de point fixe simple :</strong>
+            1. $w \leftarrow C_i$
+            2. $w_{old} \leftarrow 0$
+            3. Tant que $w \neq w_{old}$ et $w \le D_i$:
+               $w_{old} \leftarrow w$
+               $w \leftarrow C_i + \sum_{j \in hp(i)} \lceil w_{old}/T_j \rceil C_j$
+            4. Si $w \le D_i$ alors succès, sinon échec.
+        </div>
+
+        <h3>Formule RTA généralisée (Lehoczky, 1990)</h3>
+        <p>Si le temps de réponse dépasse la période ($TR_i > T_i$), plusieurs instances de $\tau_i$ peuvent être présentes dans la même période d'activité. On doit alors tester la $k$-ième instance.</p>
+        
+        <div class="callout-danger">
+            <strong>Formule de Lehoczky (À connaître) :</strong>
+            $$w_i(k) = k \cdot C_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i(k)}{T_j} \right\rceil C_j$$
+            Le temps de réponse de la $k$-ième instance est : $TR_i(k) = w_i(k) - (k-1)T_i$
+        </div>
+        
+        <div class="tip-box">
+            On teste $k=1, 2, 3...$ tant que $w_i(k) > k \cdot T_i$. Le pire temps de réponse est $TR_i = \max_k \{ TR_i(k) \}$.
+        </div>
+
+        <h3>Lien avec la RBF (Request Bound Function)</h3>
+        <p>Graphiquement, la RTA cherche l'intersection entre la courbe en escalier de la RBF (demande cumulée) et la droite $y=x$ (temps disponible).</p>
+        <div class="callout-info">
+            Chaque itération de la formule correspond à un "saut" vers la prochaine marche d'escalier de la RBF.
+        </div>
+
+        <h3>Exemple de calcul</h3>
+        <p>Soit $\tau_1(1, 4)$ et $\tau_2(10, 14)$. Calculons $TR_2$ :</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Itération $n$</th>
+                        <th>$w_2^n$</th>
+                        <th>Calcul</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0</td>
+                        <td>10</td>
+                        <td>$w_2^0 = C_2$</td>
+                        <td>Initialisation</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>13</td>
+                        <td>$10 + \lceil 10/4 \rceil \cdot 1 = 10 + 3$</td>
+                        <td>Continue</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>14</td>
+                        <td>$10 + \lceil 13/4 \rceil \cdot 1 = 10 + 4$</td>
+                        <td>Continue</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>14</td>
+                        <td>$10 + \lceil 14/4 \rceil \cdot 1 = 10 + 4$</td>
+                        <td><strong>Point fixe !</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Résultat : $TR_2 = 14 \le D_2$. Le système est ordonnançable.</p>
+
+        <h3>Propriétés de la RTA</h3>
+        <div class="compare-grid">
+            <div class="compare-item">
+                <strong>Exacte (CNS)</strong>
+                <ul>
+                    <li>Tâches indépendantes</li>
+                    <li>Échéances sur requête ($D_i \le T_i$)</li>
+                    <li>Modèle sporadique</li>
+                </ul>
+            </div>
+            <div class="compare-item">
+                <strong>Pessimiste (CS)</strong>
+                <ul>
+                    <li>Départs différés (offsets)</li>
+                    <li>Présence de ressources partagées</li>
+                    <li>Gigue d'activation</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">Pseudo-poly</div>
+                <div class="metric-label">Complexité</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">C/T/r-Viable</div>
+                <div class="metric-label">Types de viabilité</div>
+            </div>
+        </div>
+
+        <h3>Exclusions mutuelles — Inversion de priorité</h3>
+        <div class="highlight-box">
+            <strong>Inversion de priorité</strong> : Situation où une tâche de priorité basse bloque une tâche de priorité haute, car elle détient une ressource (mutex) nécessaire, et est elle-même préemptée par une tâche de priorité intermédiaire.
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-item">
+                <strong>PIP (Priority Inheritance)</strong>
+                <p>Héritage simple de la priorité du bloqué. Risque d'interblocage et de blocages multiples.</p>
+            </div>
+            <div class="compare-item">
+                <strong>PCP (Priority Ceiling)</strong>
+                <p>Priorité plafond. Un seul blocage garanti, pas d'interblocage.</p>
+            </div>
+            <div class="compare-item">
+                <strong>Immediate-PCP</strong>
+                <p>La tâche prend la priorité plafond dès l'entrée en section critique. Utilisé par les RTOS.</p>
+            </div>
+        </div>
+
+        <h3>Calcul du facteur de blocage $B_i$</h3>
+        <p>Le facteur $B_i$ représente la durée maximale pendant laquelle $\tau_i$ peut être bloquée par une tâche de priorité inférieure.</p>
+        
+        <div class="highlight-box">
+            <strong>Règle du trait</strong> : Dans le tableau tâches/ressources, $B_i$ est la durée max d'une section critique située <em>au-dessous</em> de la ligne de $\tau_i$ mais dont la ressource est utilisée par une tâche <em>au-dessus ou égale</em> à $\tau_i$.
+        </div>
+
+        <div class="formula-box">
+            $$w_i^{n+1} = C_i + \mathbf{B_i} + \sum_{j \in hp(i)} \left\lceil \frac{w_i^n}{T_j} \right\rceil C_j$$
+        </div>
+
+        <h3>Contraintes de précédence — Gigue d'activation</h3>
+        <div class="highlight-box">
+            <strong>Gigue ($J_i$)</strong> : Retard maximal possible entre l'arrivée théorique d'une tâche et son activation réelle (souvent dû au temps de réponse du prédécesseur).
+        </div>
+        
+        <div class="theorem-box">
+            <strong>Instant critique avec gigue</strong> : Toutes les tâches $j \in hp(i)$ arrivent avec leur gigue maximale $J_j$, tandis que $\tau_i$ subit son propre retard $J_i$.
+        </div>
+
+        <div class="formula-box">
+            $$w_i^{n+1} = C_i + B_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i^n + \mathbf{J_j}}{T_j} \right\rceil C_j$$
+            $$TR_i = w_i^{final} + \mathbf{J_i}$$
+        </div>
+
+        <div class="callout-warning">
+            Notez que $J_j$ intervient dans le calcul de l'interférence (point fixe), alors que $J_i$ s'ajoute à la fin au temps de réponse global.
+        </div>
+
+        <h3>Récapitulatif des formules</h3>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Contexte</th>
+                        <th>Modification de la formule</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Indépendantes</td>
+                        <td>$B_i = 0, J_j = 0$</td>
+                    </tr>
+                    <tr>
+                        <td>Ressources</td>
+                        <td>Ajout de $B_i$ (facteur de blocage)</td>
+                    </tr>
+                    <tr>
+                        <td>Précédence</td>
+                        <td>Ajout de $J_j$ dans $\lceil \dots \rceil$ et $+ J_i$ à la fin</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

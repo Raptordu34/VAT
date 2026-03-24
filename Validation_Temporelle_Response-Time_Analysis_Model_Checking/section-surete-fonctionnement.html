@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./components.css">
+    <script src="./section-utils.js" defer></script>
+</head>
+<body class="mode-detailed">
+    <h2>Sûreté de fonctionnement</h2>
+
+    <!-- MODE RÉSUMÉ -->
+    <div class="compact-content">
+        <h3 style="margin-top: 0;">Synthèse</h3>
+        <ul>
+            <li><strong>Standards industriels</strong> — Chaque domaine critique possède ses propres normes : DO-178B/C (avionique), ISO 26262 (automobile), CENELEC (ferroviaire), JARUS (drones)</li>
+            <li><strong>Limites du test</strong> — Des milliers d'heures de tests coûtent cher et ne garantissent pas l'absence d'erreurs</li>
+            <li><strong>Vérification formelle</strong> — Trois grandes familles : vérification par modèle (model checking), preuve assistée (theorem proving), raffinement de spécification (méthode B)</li>
+            <li><strong>Model checking</strong> — Approche centrale de ce cours, basée sur les Réseaux de Petri et les automates temporisés</li>
+        </ul>
+    </div>
+
+    <!-- MODE DÉTAILLÉ -->
+    <div class="detailed-content">
+
+        <h3>Motivations et contexte industriel</h3>
+        <p>
+            Quel que soit le contexte industriel, l'<strong>informatique critique</strong> répond à des standards de sûreté de fonctionnement.
+            Un système critique est un système dont la défaillance peut entraîner des conséquences graves : pertes humaines, dommages matériels majeurs ou atteinte à l'environnement.
+            Pour ces systèmes, il ne suffit pas de « bien programmer » — il faut <em>prouver</em> que le logiciel se comporte correctement.
+        </p>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> La sûreté de fonctionnement est au logiciel critique ce que le contrôle qualité est à l'industrie pharmaceutique — on ne se contente pas de fabriquer un médicament, on doit <em>démontrer</em> son innocuité avant de le commercialiser.
+        </div>
+
+        <p>Chaque domaine industriel possède ses propres standards, qui définissent des <strong>niveaux de criticité</strong> allant du plus contraignant au moins exigeant :</p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Domaine</th>
+                        <th>Standard</th>
+                        <th>Niveaux de criticité</th>
+                        <th>Exemple</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Avionique</strong></td>
+                        <td>DO-178B/C, DO-254</td>
+                        <td>DAL A / B / C / D / E</td>
+                        <td>Commandes de vol (DAL A)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Automobile</strong></td>
+                        <td>ISO 26262</td>
+                        <td>ASIL D / C / B / A / QM</td>
+                        <td>Freinage d'urgence (ASIL D)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ferroviaire</strong></td>
+                        <td>CENELEC 20126/128</td>
+                        <td>SIL 4 / 3 / 2 / 1 / (0)</td>
+                        <td>Signalisation (SIL 4)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Drone</strong></td>
+                        <td>JARUS AMC 1309</td>
+                        <td>En cours d'élaboration</td>
+                        <td>Pilote automatique</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tip-box">
+            <strong>À retenir :</strong> Le niveau le plus élevé (DAL A, ASIL D, SIL 4) impose les exigences les plus strictes en matière de vérification et de validation. Plus le niveau est élevé, plus les méthodes formelles deviennent nécessaires, voire obligatoires.
+        </div>
+
+        <h3>Limites du test</h3>
+        <p>
+            L'approche la plus intuitive pour vérifier un système consiste à le <strong>simuler</strong> puis à le <strong>tester</strong>.
+            On exécute le logiciel dans de nombreuses configurations, on observe son comportement, et on vérifie qu'il répond aux spécifications.
+        </p>
+        <p>
+            Cependant, cette approche présente des limites fondamentales :
+        </p>
+        <ul>
+            <li><strong>Coût élevé</strong> — Des centaines, voire des milliers d'heures de tests sont nécessaires pour couvrir un nombre significatif de scénarios</li>
+            <li><strong>Fiabilité basse</strong> — Le test ne peut explorer qu'un sous-ensemble fini des comportements possibles. Un bug peut se cacher dans un scénario non testé</li>
+            <li><strong>Couverture incomplète</strong> — Même avec une couverture de code à 100%, certains enchaînements temporels ou concurrentiels peuvent échapper aux tests</li>
+        </ul>
+
+        <div class="callout-warning">
+            <strong>Attention :</strong> « Le test permet de montrer la présence de bugs, jamais leur absence. » (Dijkstra). Des milliers d'heures de test ne garantissent pas qu'un système critique est exempt d'erreurs — seule la <strong>vérification formelle</strong> peut fournir une telle garantie.
+        </div>
+
+        <div class="callout-info">
+            <strong>Analogie :</strong> Tester un pont en faisant passer des camions de plus en plus lourds montre qu'il résiste à ces charges, mais ne prouve pas qu'il résistera à <em>toutes</em> les charges possibles. Un calcul de structure (approche formelle) peut le prouver.
+        </div>
+
+        <h3>Méthodes de vérification formelle</h3>
+
+        <div class="highlight-box">
+            <strong>Vérification formelle :</strong> ensemble de méthodes mathématiques permettant de <em>prouver</em> qu'un système satisfait une propriété donnée, en explorant exhaustivement (ou en raisonnant sur) l'ensemble de ses comportements possibles.
+        </div>
+
+        <p>On distingue trois grandes familles de méthodes de vérification formelle :</p>
+
+        <div class="compare-grid">
+            <div class="compare-item good" data-label="Model Checking">
+                <p>
+                    <strong>Vérification par modèle</strong> — On construit un modèle formel du système (RdP, automate temporisé, TLA+…) et on vérifie automatiquement si une propriété est satisfaite en explorant l'espace d'états.
+                </p>
+                <p><em>Avantage :</em> automatique, fournit un contre-exemple en cas d'échec.</p>
+            </div>
+            <div class="compare-item neutral" data-label="Theorem Proving">
+                <p>
+                    <strong>Preuve assistée</strong> — On exprime le système et ses propriétés dans une logique formelle, puis on construit une preuve mathématique à l'aide d'un assistant (Coq, Isabelle…).
+                </p>
+                <p><em>Avantage :</em> pas de limite d'espace d'états, preuve complète.</p>
+            </div>
+            <div class="compare-item neutral" data-label="Méthode B">
+                <p>
+                    <strong>Raffinement de spécification</strong> — On part d'une spécification abstraite et on la raffine progressivement vers une implémentation, en prouvant que chaque étape préserve les propriétés.
+                </p>
+                <p><em>Avantage :</em> correction par construction.</p>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <strong>Positionnement du cours :</strong> Ce cours se concentre sur la première famille — le <em>model checking</em> — en utilisant les <strong>Réseaux de Petri</strong> (classiques puis temporels) comme formalisme de modélisation, et les logiques temporelles (LTL, CTL, TCTL) pour exprimer les propriétés à vérifier.
+        </div>
+
+    </div>
+</body>
+</html>
