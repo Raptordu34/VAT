@@ -3,22 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
     <script src="./section-utils.js" defer></script>
 </head>
 <body>
-    <h2>TD2 — Viabilité</h2>
+
+    <h2>TD2 — Validation par simulation et viabilité</h2>
+
+    <!-- ── EN-TÊTE DE L'EXERCICE ── -->
     <div class="exo-header">
         <div class="exo-meta">
             <span class="diff-badge diff-moyen">Intermédiaire</span>
-            <span class="exo-points">◎ -- pts</span>
-            <span class="exo-time">⏱ -- min</span>
+            <span class="exo-points">◎ 20 pts</span>
+            <span class="exo-time">⏱ 45–60 min</span>
         </div>
         <div class="objectifs">
             <strong>Objectifs</strong>
             <ul>
-                <li>...</li>
+                <li>Comprendre les limites d'une simulation d'ordonnancement</li>
+                <li>Maîtriser les concepts de C-viabilité, T-viabilité et r-viabilité</li>
+                <li>Analyser l'impact des paramètres (priorités, réveils, dépendances) sur la viabilité</li>
+            </ul>
+        </div>
+        <p class="exo-prereq"><strong>Prérequis :</strong> Cours sur l'ordonnancement temps réel · Notions de RM/EDF</p>
+    </div>
+
+    <!-- ── RAPPEL DE COURS ── -->
+    <div class="context-block">
+        <h3>Simulation et Viabilité</h3>
+        <p>
+            La simulation permet de tracer le fonctionnement attendu d'un système pour un jeu de paramètres donnés.
+            Cependant, elle ne représente qu'un <strong>comportement unique</strong>.
+        </p>
+        
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition :</strong> Une simulation est comme une photo d'un trajet en voiture à un instant T. Elle ne garantit pas que vous n'aurez jamais de bouchons, même si la photo montre une route dégagée. La viabilité, c'est s'assurer que si les conditions changent (plus de trafic, travaux), votre temps de trajet n'explosera pas de manière imprévisible.</p>
+        </div>
+
+        <button class="hint-btn" data-hint="rappel-viabilite" data-label="Définitions de la viabilité" data-close-label="Masquer les définitions" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Définitions de la viabilité</span>
+        </button>
+        <div class="hint" id="rappel-viabilite">
+            <p>Un test d'ordonnançabilité est dit :</p>
+            <ul>
+                <li><strong>C-viable :</strong> si réduire une durée d'exécution ($C_i$) ne peut pas augmenter un temps de réponse.</li>
+                <li><strong>T-viable :</strong> si augmenter une période ($T_i$) ne peut pas augmenter un temps de réponse.</li>
+                <li><strong>r-viable :</strong> si augmenter une date de réveil ($r_i$) ne peut pas augmenter un temps de réponse.</li>
+            </ul>
+            <div class="highlight-box">
+                <p><span class="badge badge-orange">Repère</span></p>
+                <p>Un système est ordonnançable par simulation si et seulement si la simulation représente le <strong>pire cas</strong> du système dans un contexte viable.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- EXERCICE 1                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+    <h3>Exercice 1 — Tâches indépendantes et priorités fixes</h3>
+
+    <div class="context-block">
+        <p>Soit un système de tâches indépendantes, périodiques, ordonnancé en-ligne sur un processeur unique, caractérisé par :</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tâche</th>
+                        <th>$r_i$</th>
+                        <th>$WCET C_i$</th>
+                        <th>$D_i$</th>
+                        <th>$T_i$</th>
+                        <th>Priorité $\Pi_i$</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>$\tau_1$</td><td>0</td><td>8</td><td>30</td><td>30</td><td>1 (Max)</td></tr>
+                    <tr><td>$\tau_2$</td><td>0</td><td>6</td><td>20</td><td>20</td><td>2</td></tr>
+                    <tr><td>$\tau_3$</td><td>0</td><td>4</td><td>15</td><td>15</td><td>3 (Min)</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="inline-note">Note : Ici, la priorité 1 est la plus élevée.</p>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q1</span>
+            <span class="question-pts">2 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>Calculer l'utilisation processeur $U$ du système et conclure sur la condition nécessaire d'ordonnançabilité.</p>
+
+        <button class="hint-btn" data-hint="q1-h1" data-label="Formule de l'utilisation" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Formule de l'utilisation</span>
+        </button>
+        <div class="hint" id="q1-h1">
+            L'utilisation processeur est donnée par $U = \sum_{i=1}^{n} \frac{C_i}{T_i}$.
+            Sur un mono-processeur, une condition nécessaire est $U \leq 1$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Calcul de U..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p>$U = \frac{8}{30} + \frac{6}{20} + \frac{4}{15} = \frac{16+18+16}{60} = \frac{50}{60} \approx 0,833$</p>
+            <p>$U \leq 1$, donc le système <em>pourrait</em> être ordonnançable. C'est une condition nécessaire mais pas suffisante.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q2</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>Tracer la simulation de l'ordonnancement. Quel est le pire temps de réponse observé pour chaque tâche ? Le système respecte-t-il ses échéances ?</p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Oublier qu'une tâche de priorité supérieure préempte immédiatement une tâche de priorité inférieure dans un ordonnancement en-ligne.
+        </div>
+
+        <button class="hint-btn" data-hint="q2-h1" data-label="Méthode de tracé" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Méthode de tracé</span>
+        </button>
+        <div class="hint" id="q2-h1">
+            <ul class="steps">
+                <li>À $t=0$, les 3 tâches se réveillent. $\tau_1$ (priorité 1) s'exécute.</li>
+                <li>À $t=8$, $\tau_1$ finit, $\tau_2$ prend le relais.</li>
+                <li>Surveillez les réveils périodiques (ex: $\tau_3$ à $t=15$).</li>
             </ul>
         </div>
     </div>
+
+    <div class="reponse-zone" data-placeholder="Tracé et temps de réponse..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>Trace (0 à 30ms) :</strong></p>
+            <ul>
+                <li>[0-8] : $\tau_1$ s'exécute (finit à 8). Temps de réponse $R_1=8$.</li>
+                <li>[8-14] : $\tau_2$ s'exécute (finit à 14). Temps de réponse $R_2=14$.</li>
+                <li>[14-15] : $\tau_3$ commence.</li>
+                <li>À $t=15$ : $\tau_3$ est réactivée. Mais l'instance précédente n'est pas finie !</li>
+                <li>[15-18] : $\tau_3$ continue (finit à 18). Temps de réponse de la 1ère instance $R_3=18$. <strong>Échec !</strong> $R_3 > D_3$ (18 > 15).</li>
+            </ul>
+            <p>Le système n'est pas ordonnançable avec ces priorités.</p>
+        </div>
+    </div>
+
+    <div class="highlight-box">
+        <p><span class="badge badge-green">Analyse de viabilité</span></p>
+        <p>Lorsque les tâches sont indépendantes, préemptibles, et ordonnancées sur un processeur unique, la simulation est <strong>C-viable</strong> et <strong>T-viable</strong>.</p>
+        <p>Si le système est non concret (dates de réveil inconnues), la simulation avec réveils simultanés est <strong>r-viable</strong> (car elle représente l'instant critique).</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- EXERCICE 2                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+    <h3>Exercice 2 — Tâches avec dates de réveil (Offsets)</h3>
+
+    <div class="context-block">
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tâche</th><th>$r_i$</th><th>$C_i$</th><th>$D_i$</th><th>$T_i$</th><th>$\Pi_i$</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>$\tau_1$</td><td>8</td><td>8</td><td>30</td><td>30</td><td>1</td></tr>
+                    <tr><td>$\tau_2$</td><td>4</td><td>6</td><td>20</td><td>20</td><td>2</td></tr>
+                    <tr><td>$\tau_3$</td><td>0</td><td>6</td><td>15</td><td>15</td><td>3</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>Tracer la simulation. Quelle est la durée de la fenêtre d'observation nécessaire pour conclure sur l'ordonnançabilité ?</p>
+        
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Ne pas tenir compte des offsets dans le calcul du cycle d'ordonnancement. Le cycle ne commence pas forcément à $t=0$.
+        </div>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Rappel sur l'hyperpériode" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Rappel sur l'hyperpériode</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            Si $D_i \leq T_i$, la fenêtre est de taille $H = PPCM(T_i)$ après l'instant où toutes les tâches ont été activées au moins une fois. Ici $H = PPCM(30, 20, 15) = 60$. La fenêtre d'étude est $[0, \max(r_i) + 2H]$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Analyse du cycle et tracé..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p>L'utilisation $U$ reste la même ($\approx 0,833$).</p>
+            <p><strong>Trace initiale :</strong></p>
+            <ul>
+                <li>[0-6] : $\tau_3$ s'exécute ($r_3=0$).</li>
+                <li>[6-8] : Processeur inactif (en attente de $r_1=8$). <em>Note : $\tau_2$ réveillée à 4 mais priorité moindre.</em></li>
+                <li>[8-16] : $\tau_1$ s'exécute ($r_1=8$).</li>
+                <li>[16-22] : $\tau_2$ s'exécute ($r_2=4$, attendait la fin de $\tau_1$). $R_2 = 22-4 = 18$ (OK, $18 < 20$).</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- EXERCICE 3                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+    <h3>Exercice 3 — Contraintes de précédence</h3>
+
+    <div class="context-block">
+        <p>On considère un système où <strong>$\tau_3$ précède $\tau_1$</strong>. Les paramètres sont les mêmes qu'à l'exercice 1, mais les priorités sont modifiées.</p>
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition :</strong> Une contrainte de précédence est comme une recette de cuisine : vous ne pouvez pas cuire le gâteau ($\tau_1$) avant d'avoir mélangé les ingrédients ($\tau_3$), même si le four est déjà chaud.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">3 pts</span>
+            <span class="diff-badge diff-avance">Avancé</span>
+        </div>
+        <p>Que conclure sur la viabilité de la simulation lorsqu'il existe des contraintes de précédence ?</p>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Réflexion sur la viabilité..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p>Les contraintes de précédence peuvent <strong>rompre la C-viabilité</strong> dans certains contextes d'ordonnancement dynamique ou avec des portions non préemptibles.</p>
+            <p>Si $\tau_3$ finit plus tôt que prévu, elle pourrait libérer $\tau_1$ à un instant qui provoque une préemption défavorable pour une autre tâche $\tau_2$, augmentant ainsi le temps de réponse de cette dernière. C'est une <strong>anomalie d'ordonnancement</strong>.</p>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- EXERCICE 4                                     -->
+    <!-- ══════════════════════════════════════════════ -->
+    <h3>Exercice 4 — Exclusion mutuelle et sections non-préemptibles</h3>
+
+    <div class="context-block">
+        <p>Considérons un système de trois tâches où $\tau_1$ et $\tau_2$ sont en exclusion mutuelle pendant toute leur durée (accès à une ressource partagée unique).</p>
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tâche</th><th>$r_i$</th><th>$C_i$</th><th>$D_i$</th><th>$T_i$</th><th>$\Pi_i$ (DM)</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>$\tau_1$</td><td>0</td><td>6</td><td>16</td><td>16</td><td>1 (Basse)</td></tr>
+                    <tr><td>$\tau_2$</td><td>0</td><td>2</td><td>6</td><td>8</td><td>3 (Haute)</td></tr>
+                    <tr><td>$\tau_3$</td><td>0</td><td>6</td><td>15</td><td>16</td><td>2 (Moyenne)</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="inline-note">Note : Les priorités suivent la règle Deadline Monotonic (DM).</p>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q5</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-avance">Avancé</span>
+        </div>
+        <p>Tracer la simulation. Que se passe-t-il si la durée d'exécution de la tâche de plus basse priorité ($\tau_1$) diminue à $C_1=3$ ?</p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Penser qu'une réduction de temps d'exécution ($C_i$) améliore <em>toujours</em> l'ordonnançabilité. Dans un système avec sections non-préemptibles, cela peut provoquer des blocages ou des inversions de priorité imprévus.
+        </div>
+
+        <button class="hint-btn" data-hint="q5-h1" data-label="Indice sur l'exclusion mutuelle" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice sur l'exclusion mutuelle</span>
+        </button>
+        <div class="hint" id="q5-h1">
+            Si $\tau_1$ (basse priorité) s'exécute et détient la ressource, $\tau_2$ (haute priorité) peut être bloquée même si elle se réveille, car elle doit attendre la libération de la ressource par $\tau_1$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Analyse de l'impact de la réduction de C1..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>Constat :</strong> La réduction de $C_1$ peut paradoxalement augmenter le temps de réponse d'une autre tâche. C'est la preuve que le système n'est pas <strong>C-viable</strong> en présence de sections non-préemptibles sans protocole spécifique (comme PCP).</p>
+        </div>
+    </div>
+
+    <!-- ── BARÈME ── -->
+    <div class="bareme">
+        <span class="bareme-pts">2</span>
+        <span class="bareme-label">Utilisation processeur</span>
+        <span class="bareme-desc">Calcul correct et conclusion sur la condition nécessaire</span>
+
+        <span class="bareme-pts">8</span>
+        <span class="bareme-label">Simulation (Exo 1 & 2)</span>
+        <span class="bareme-desc">Exactitude du tracé, gestion des priorités et calcul des temps de réponse</span>
+
+        <span class="bareme-pts">10</span>
+        <span class="bareme-label">Analyse de viabilité (Exo 3 & 4)</span>
+        <span class="bareme-desc">Identification des anomalies de précédence et d'exclusion mutuelle</span>
+
+        <div class="bareme-total">Total : <strong>20 pts</strong></div>
+    </div>
+
+    <!-- ── POUR ALLER PLUS LOIN ── -->
+    <div class="pour-aller-plus-loin">
+        <strong>Pour aller plus loin</strong>
+        <ul>
+            <li>Simulez ces systèmes sur <a href="http://projects.laas.fr/simso-web/#/configuration" target="_blank">SimSo Web</a> pour vérifier vos tracés.</li>
+            <li>Recherchez le concept d'<strong>Anomalies de Richard</strong> dans l'ordonnancement multiprocesseur.</li>
+            <li>Comment l'héritage de priorité (Priority Inheritance Protocol) affecte-t-il la viabilité ?</li>
+        </ul>
+    </div>
+
 </body>
 </html>

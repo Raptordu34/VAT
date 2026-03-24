@@ -3,6 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
     <script src="./section-utils.js" defer></script>
 </head>
 <body>
@@ -551,8 +565,8 @@ owcet -s lpc2138 bs.elf --stats -S</code></pre>
     <div class="question">
         <div class="question-header">
             <span class="question-num">Q4</span>
-            <span class="question-pts">6 pts</span>
-            <span class="diff-badge diff-moyen">Intermédiaire</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
         </div>
         <p>
             Modifiez la valeur de l'indice de fin de la boucle <code>for</code> principale en la
@@ -606,29 +620,29 @@ owcet -s lpc2138 bs.elf --stats -S</code></pre>
 
             <div class="highlight-box">
                 <p><span class="badge badge-orange">Modèle simplifié</span></p>
-                <p>Soit <em>T<sub>cold</sub></em> la durée de la 1ère exécution (cache froid) et <em>T<sub>warm</sub></em> la durée des suivantes (cache chaud).</p>
-                <p>La durée totale de N appels vaut : <strong>T<sub>cold</sub> + (N − 1) × T<sub>warm</sub></strong></p>
-                <p>La moyenne par appel vaut : <strong>T<sub>cold</sub>/N + T<sub>warm</sub> × (N−1)/N</strong></p>
-                <p>Quand N → ∞, la moyenne tend vers <strong>T<sub>warm</sub></strong> — le coût du cache froid devient négligeable.</p>
+                <p>Soit $T_{\text{cold}}$ la durée de la 1ère exécution (cache froid) et $T_{\text{warm}}$ la durée des suivantes (cache chaud).</p>
+                <p>La durée totale de N appels vaut : <strong>$T_{\text{cold}} + (N - 1) \times T_{\text{warm}}$</strong></p>
+                <p>La moyenne par appel vaut : <strong>$T_{\text{cold}}/N + T_{\text{warm}} \times (N-1)/N$</strong></p>
+                <p>Quand N → $\infty$, la moyenne tend vers <strong>$T_{\text{warm}}$</strong> — le coût du cache froid devient négligeable.</p>
             </div>
 
             <div class="table-glass">
                 <table>
                     <thead>
-                        <tr><th>N (appels)</th><th>Poids de T<sub>cold</sub></th><th>Moyenne observée</th></tr>
+                        <tr><th>N (appels)</th><th>Poids de $T_{\text{cold}}$</th><th>Moyenne observée</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>10</td><td>10 %</td><td>T<sub>warm</sub> + 0,1 × (T<sub>cold</sub> − T<sub>warm</sub>)</td></tr>
-                        <tr><td>100</td><td>1 %</td><td>T<sub>warm</sub> + 0,01 × (T<sub>cold</sub> − T<sub>warm</sub>)</td></tr>
-                        <tr><td>1 000</td><td>0,1 %</td><td>≈ T<sub>warm</sub></td></tr>
+                        <tr><td>10</td><td>10 %</td><td>$T_{\text{warm}} + 0,1 \times (T_{\text{cold}} - T_{\text{warm}})$</td></tr>
+                        <tr><td>100</td><td>1 %</td><td>$T_{\text{warm}} + 0,01 \times (T_{\text{cold}} - T_{\text{warm}})$</td></tr>
+                        <tr><td>1 000</td><td>0,1 %</td><td>≈ $T_{\text{warm}}$</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="callout-info">
                 <strong>Leçon pour la mesure dynamique :</strong> mesurer la durée sur un seul appel
-                donne T<sub>cold</sub> — valeur anormalement élevée, non représentative du régime
-                permanent. Pour obtenir T<sub>warm</sub>, il faut "chauffer" le cache avec quelques
+                donne $T_{\text{cold}}$ — valeur anormalement élevée, non représentative du régime
+                permanent. Pour obtenir $T_{\text{warm}}$, il faut "chauffer" le cache avec quelques
                 appels préalables non mesurés (<em>warm-up phase</em>), ou mesurer un grand nombre
                 d'appels et calculer la moyenne en excluant le premier.
             </div>
@@ -642,7 +656,7 @@ owcet -s lpc2138 bs.elf --stats -S</code></pre>
     <div class="bareme">
         <span class="bareme-pts">5</span>
         <span class="bareme-label">Q1 — Borne de boucle binary_search</span>
-        <span class="bareme-desc">2 pts valeur N correcte · 3 pts raisonnement log₂ justifié étape par étape</span>
+        <span class="bareme-desc">2 pts valeur N correcte · 3 pts raisonnement $\log_2$ justifié étape par étape</span>
 
         <span class="bareme-pts">5</span>
         <span class="bareme-label">Q2 — Impact de l'optimisation -O1</span>
@@ -654,7 +668,7 @@ owcet -s lpc2138 bs.elf --stats -S</code></pre>
 
         <span class="bareme-pts">6</span>
         <span class="bareme-label">Q4 — Effet d'amortissement du cache</span>
-        <span class="bareme-desc">2 pts identification du warm-up · 2 pts modèle T_cold / T_warm · 2 pts interprétation de la limite N→∞</span>
+        <span class="bareme-desc">2 pts identification du warm-up · 2 pts modèle $T_{\text{cold}} / T_{\text{warm}}$ · 2 pts interprétation de la limite N→$\infty$</span>
 
         <div class="bareme-total">Total : <strong>20 pts</strong></div>
     </div>
