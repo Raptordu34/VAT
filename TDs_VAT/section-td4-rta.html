@@ -3,22 +3,651 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
     <script src="./section-utils.js" defer></script>
 </head>
 <body>
-    <h2>TD4 — RTA</h2>
+    <h2>TD4 — Analyse de Temps de Reponse (RTA)</h2>
+
     <div class="exo-header">
         <div class="exo-meta">
-            <span class="diff-badge diff-moyen">Intermédiaire</span>
-            <span class="exo-points">◎ -- pts</span>
-            <span class="exo-time">⏱ -- min</span>
+            <span class="diff-badge diff-avance">Avance</span>
+            <span class="exo-points">◎ 30 pts</span>
+            <span class="exo-time">⏱ 90-120 min</span>
         </div>
         <div class="objectifs">
             <strong>Objectifs</strong>
             <ul>
-                <li>...</li>
+                <li>Relier la notion de periode d'activite a la formule de point fixe de la RTA</li>
+                <li>Calculer correctement des temps de reponse en RM et DM</li>
+                <li>Distinguer les cas exacts et les cas pessimistes (departs differes, systemes asynchrones)</li>
+                <li>Analyser les systemes ou la pire instance n'est pas la premiere</li>
             </ul>
         </div>
+        <p class="exo-prereq"><strong>Prerequis :</strong> <em>WCET, ordonnancement a priorites fixes (RM/DM), notion d'instant critique</em></p>
+    </div>
+
+    <div class="context-block">
+        <h3>Contexte et rappel de cours</h3>
+        <p>
+            Le TD etudie la <strong>Response-Time Analysis (RTA)</strong> pour des systemes a priorites fixes.
+            La simulation exhaustive peut devenir couteuse, alors que la RTA fournit une methode de calcul
+            <em>pseudo-polynomiale</em> basee sur un point fixe.
+        </p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Pourquoi utiliser la RTA ?</span></p>
+                <p>
+                    La RTA permet d'obtenir directement une borne de pire temps de reponse sans simuler toute
+                    l'hyperperiode. C'est utile quand le nombre de taches augmente et que la simulation devient
+                    difficile a exploiter en pratique.
+                </p>
+                <p class="inline-note">Idee cle: on calcule une borne analytique $TR_i$ et on verifie $TR_i \le D_i$.</p>
+            </div>
+            <div class="callout-info">
+                <p><span class="badge badge-blue">A quoi ca sert concretement ?</span></p>
+                <ul>
+                    <li>Verifier une architecture temps reel <strong>avant</strong> integration complete.</li>
+                    <li>Justifier une marge temporelle pour la surete ou la certification.</li>
+                    <li>Comparer rapidement deux choix d'ordonnancement (RM, DM, priorites candidates).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>TD precedent</th><th>Question principale</th><th>Ce que TD4 apporte en plus</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>TD1 (WCET)</strong></td><td>Combien vaut le pire temps d'execution $C_i$ ?</td><td>La RTA utilise ces $C_i$ pour calculer l'impact des interferences entre taches.</td></tr>
+                    <tr><td><strong>TD2 (Viabilite)</strong></td><td>Le modele reste-t-il valide si les parametres changent ?</td><td>La RTA fournit une borne monotone pour etudier la robustesse (ex: variation de $C$, $T$, reveils).</td></tr>
+                    <tr><td><strong>TD3 (FTP)</strong></td><td>Quelle affectation de priorites est pertinente ?</td><td>La RTA sert de test exact de faisabilite temporelle sous ces priorites.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Conditions d'application de la RTA (cadre classique)</span></p>
+            <ul>
+                <li>Taches independantes et preemptibles, sur monoprocesseur.</li>
+                <li>Ordonnancement a priorites fixes (RM, DM ou autre ordre fixe).</li>
+                <li>Modele de reveil compatible avec l'hypothese de pire cas (periodique/sporadique avec inter-arrivee minimale).</li>
+                <li>Parametres connus: $C_i$, $T_i$, $D_i$, et relation de priorite.</li>
+            </ul>
+            <p class="inline-note">Hors de ce cadre (ressources partagees, non-preemptif, multiprocesseur), il faut des extensions de RTA.</p>
+        </div>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <p><span class="badge badge-green">RTA exacte, pessimiste, optimiste : que signifie cela ?</span></p>
+                <ul>
+                    <li><strong>Exacte :</strong> la borne RTA coincide avec le pire cas observe, $TR_i^{RTA} = TR_i^{reel}$.</li>
+                    <li><strong>Pessimiste :</strong> la borne RTA surestime le pire cas, $TR_i^{RTA} &gt; TR_i^{reel}$.</li>
+                    <li><strong>Optimiste :</strong> la borne RTA sous-estime le pire cas, $TR_i^{RTA} &lt; TR_i^{reel}$ (dangereux).</li>
+                </ul>
+                <p class="inline-note">En surete de fonctionnement, un pessimisme modere est acceptable; un optimisme est critique.</p>
+            </div>
+
+            <div class="callout-info">
+                <p><span class="badge badge-blue">Checklist rapide de decision</span></p>
+                <ol>
+                    <li>Calculer $TR_i^{RTA}$ pour chaque tache.</li>
+                    <li>Comparer a une reference (simulation fidele ou trace mesuree) pour obtenir $TR_i^{reel}$.</li>
+                    <li>Conclure par comparaison: egalite (exacte), au-dessus (pessimiste), en-dessous (optimiste).</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Definitions clefs</span></p>
+            <ul>
+                <li><strong>Periode d'activite de niveau i :</strong> intervalle continu ou le processeur reste occupe par les taches de priorite au moins i.</li>
+                <li><strong>Point creux :</strong> instant ou la charge a traiter devient nulle.</li>
+                <li><strong>Theoreme d'Audsley :</strong> le pire temps de reponse d'une tache de priorite i est dans la plus longue periode d'activite de niveau i.</li>
+            </ul>
+        </div>
+
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p>
+                La RTA revient a remplir une cuve qui fuit: a chaque reveil de tache prioritaire, on ajoute un seau d'eau
+                (interference), et le processeur evacue une unite par unite de temps. Le point fixe est l'instant ou les apports
+                et l'evacuation se stabilisent exactement.
+            </p>
+        </div>
+
+        <p><strong>Formule de base (Joseph & Pandya, 1986), 1re instance :</strong></p>
+        <p>$$w_i^* = C_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i^*}{T_j} \right\rceil C_j$$</p>
+
+        <p>Si $w_i^* \le T_i$, alors $TR_i = w_i^*$ pour la tache $\tau_i$.</p>
+
+        <p><strong>Formule generalisee (Lehoczky, 1990), k-ieme instance :</strong></p>
+        <p>$$w_i^*(k) = kC_i + \sum_{j \in hp(i)} \left\lceil \frac{w_i^*(k)}{T_j} \right\rceil C_j$$</p>
+        <p>$$TR_i(k) = w_i^*(k) - (k-1)T_i$$</p>
+
+        <p class="source">Source: TD_VAT_4_Analyse_RTA.pdf (Audsley 1991, Joseph & Pandya 1986, Lehoczky 1990).</p>
+    </div>
+
+    <button class="hint-btn" data-hint="rappel-rta" data-label="Rappel de cours" data-close-label="Masquer le rappel" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Rappel de cours</span>
+    </button>
+    <div class="hint" id="rappel-rta">
+        <p><strong>Reflexe de calcul :</strong> pour chaque tache, iterer jusqu'au point fixe en partant d'une borne inferieure ($w_0 = C_i$ ou $w_0 = kC_i$).</p>
+        <p><strong>Critere d'arret global :</strong> un systeme est ordonnancable si, pour toute tache, on montre $TR_i \le D_i$.</p>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-green">Exemple rapide</span></p>
+            <p>Pour $\tau_2 &lt;C=10, T=14&gt;$ perturbee par $\tau_1 &lt;C=1, T=4&gt;$ :</p>
+            <ul>
+                <li>$w_0 = 10$</li>
+                <li>$w_1 = 10 + \lceil 10/4 \rceil \cdot 1 = 13$</li>
+                <li>$w_2 = 10 + \lceil 13/4 \rceil \cdot 1 = 14$</li>
+                <li>$w_3 = 10 + \lceil 14/4 \rceil \cdot 1 = 14$ (point fixe)</li>
+            </ul>
+        </div>
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Intuition</span></p>
+            <p>
+                A chaque iteration, on estime la fin de periode d'activite. Si cette estimation grossit,
+                cela revele de nouveaux reveils prioritaires a comptabiliser. Quand l'estimation ne change plus,
+                on a trouve le bon niveau de charge.
+            </p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q1</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>
+            <strong>Exercice 1 (PDF):</strong> relier la formule RTA et la periode d'activite pour le systeme
+            $\{\tau_1 &lt;C_1=1, T_1=4&gt;, \tau_2 &lt;C_2=10, T_2=14&gt;\}$.
+            Calculer le pire temps de reponse de $\tau_2$ avec la RTA.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> s'arreter a la premiere iteration non entiere. La presence du plafond
+            $\lceil \cdot \rceil$ impose de poursuivre jusqu'a stabilisation exacte du point fixe.
+        </div>
+
+        <button class="hint-btn" data-hint="q1-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q1-h1">
+            Ici, $hp(2)=\{1\}$. La recurrence est $w = 10 + \lceil w/4 \rceil$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q1-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q1-h2">
+            Testez la suite $10 \rightarrow 13 \rightarrow 14 \rightarrow 14$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Calculez les iterations et concluez sur TR2..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q1</h4>
+            <ul class="steps">
+                <li>$w_0 = C_2 = 10$.</li>
+                <li>$w_1 = 10 + \lceil 10/4 \rceil \cdot 1 = 13$.</li>
+                <li>$w_2 = 10 + \lceil 13/4 \rceil \cdot 1 = 14$.</li>
+                <li>$w_3 = 10 + \lceil 14/4 \rceil \cdot 1 = 14$, donc point fixe atteint.</li>
+            </ul>
+            <p><strong>Conclusion:</strong> $TR_2 = 14$ (egal a $T_2$), donc la premiere instance de $\tau_2$ est la pire dans ce cas.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q2</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermediaire</span>
+        </div>
+        <p>
+            <strong>Exercice 2 (PDF):</strong> systeme $S_1 = \{&lt;2,4&gt;, &lt;1,4&gt;, &lt;1,8&gt;\}$, taches periodiques,
+            simultanees, echeances sur requete, ordonnancement RM.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Calculer la charge du systeme $S_1$, et conclure.</div>
+        <div class="sub-question"><strong>b)</strong> RM est-il optimal pour $S_1$ ?</div>
+        <div class="sub-question"><strong>c)</strong> La RTA est-elle exacte, pessimiste ou optimiste ?</div>
+        <div class="sub-question"><strong>d)</strong> Calculer avec la RTA le temps de reponse de chaque tache, et conclure.</div>
+
+        <div class="callout-info">
+            <strong>Convention :</strong> en cas d'egalite de periode (ici $T=4$), fixer un ordre de priorite
+            deterministe (ex: $\tau_1$ puis $\tau_2$). La conclusion d'ordonnancabilite reste identique ici.
+        </div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> confondre borne suffisante de Liu-Layland et test exact.
+            Si la borne suffisante echoue, il faut continuer avec la RTA.
+        </div>
+
+        <button class="hint-btn" data-hint="q2-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q2-h1">
+            Calculez d'abord la charge: $U = 2/4 + 1/4 + 1/8$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q2-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q2-h2">
+            Pour la tache la plus basse priorite ($T=8$): $w = 1 + \lceil w/4 \rceil \cdot 2 + \lceil w/4 \rceil \cdot 1$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="a) U, b) optimalite RM, c) nature RTA, d) TR de chaque tache..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q2</h4>
+            <p><strong>a) Charge :</strong> $U = 2/4 + 1/4 + 1/8 = 0.875$.</p>
+            <p><strong>b) RM optimal ?</strong> Oui, pour ce cadre (taches periodiques independantes a $D_i = T_i$), RM est optimal parmi les priorites fixes.</p>
+            <p><strong>c) RTA exacte/pessimiste/optimiste ?</strong> Exacte dans ce cadre classique (instant critique applicable).</p>
+            <p><strong>d) Temps de reponse (ordre $\tau_1 &gt; \tau_2 &gt; \tau_3$):</strong></p>
+            <ul>
+                <li>$TR_1 = C_1 = 2$.</li>
+                <li>$w = 1 + \lceil w/4 \rceil \cdot 2$ donne $1 \rightarrow 3 \rightarrow 3$, donc $TR_2 = 3$.</li>
+                <li>$w = 1 + \lceil w/4 \rceil \cdot 2 + \lceil w/4 \rceil \cdot 1$ donne $1 \rightarrow 4 \rightarrow 4$, donc $TR_3 = 4$.</li>
+            </ul>
+            <p><strong>Conclusion:</strong> $TR_1 \le 4$, $TR_2 \le 4$, $TR_3 \le 8$, systeme ordonnancable.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermediaire</span>
+        </div>
+        <p>
+            <strong>Exercice 3 (PDF):</strong> systeme sporadique
+            $S_2 = \{&lt;2,7&gt;, &lt;2,4&gt;, &lt;3,14&gt;\}$ sous RM.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Calculer la charge du systeme $S_2$, et conclure.</div>
+        <div class="sub-question"><strong>b)</strong> RM est-il optimal pour $S_2$ ?</div>
+        <div class="sub-question"><strong>c)</strong> La RTA est-elle exacte, pessimiste ou optimiste ?</div>
+        <div class="sub-question"><strong>d)</strong> Calculer avec la RTA le temps de reponse de chaque tache, et conclure.</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> conclure "faisable" des que $U=1$.
+            Une charge egale a 1 n'evite pas les depassements de deadline dans tous les cas.
+        </div>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            Priorites RM: $T=4$ puis $T=7$ puis $T=14$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q3-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q3-h2">
+            Pour la tache de periode 14, iterer jusqu'au point fixe: vous trouverez $TR=15$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Calculez U, appliquez la RTA sur chaque tache et concluez..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q3</h4>
+            <p><strong>a) Charge :</strong> $U = 2/7 + 2/4 + 3/14 = 1.0$.</p>
+            <p><strong>b) RM optimal ?</strong> Oui dans ce cadre $D_i = T_i$, mais cela ne garantit pas que ce systeme precis soit faisable.</p>
+            <p><strong>c) Nature de la RTA :</strong> exacte pour ce modele sporadique a inter-arrivees minimales.</p>
+            <p><strong>d) Calcul RTA :</strong></p>
+            <ul>
+                <li>Tache $T=4$ : $TR = 2$.</li>
+                <li>Tache $T=7$ : $w = 2 + \lceil w/4 \rceil \cdot 2$ donne $2 \rightarrow 4 \rightarrow 4$, donc $TR = 4$.</li>
+                <li>Tache $T=14$ : iterations $3 \rightarrow 7 \rightarrow 9 \rightarrow 11 \rightarrow 13 \rightarrow 15 \rightarrow 15$, donc $TR = 15$.</li>
+            </ul>
+            <p><strong>Conclusion:</strong> $TR(14)=15 &gt; D=14$, donc <strong>S2 non ordonnancable</strong>.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-avance">Avance</span>
+        </div>
+        <p>
+            <strong>Exercice 4 (PDF):</strong> systeme periodique a departs differes
+            $S_3 = \{&lt;O_1=0,C_1=1,T_1=4&gt;, &lt;O_2=1,C_2=3,T_2=6&gt;, &lt;O_3=2,C_3=1,T_3=4&gt;\}$ sous RM.
+            Repondre aux points a)-f), dont comparaison RTA vs simulation.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Charge du systeme et conclusion preliminaire.</div>
+        <div class="sub-question"><strong>b)</strong> RM est-il optimal dans ce contexte asynchrone ?</div>
+        <div class="sub-question"><strong>c)</strong> Nature de la RTA (exacte, pessimiste, optimiste).</div>
+        <div class="sub-question"><strong>d)</strong> Calcul des temps de reponse par RTA.</div>
+        <div class="sub-question"><strong>e)</strong> Nature de la simulation sur S3.</div>
+        <div class="sub-question"><strong>f)</strong> Tracer/synthetiser une simulation et comparer aux valeurs RTA.</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> appliquer la RTA synchrone sans discuter l'impact des offsets $O_i$.
+            Avec departs differes, l'instant critique "tout le monde a t=0" n'est pas forcement realisable.
+        </div>
+
+        <button class="hint-btn" data-hint="q4-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q4-h1">
+            La charge vaut $1/4 + 3/6 + 1/4 = 1$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q4-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q4-h2">
+            En RTA synchrone pour la tache $C=3,T=6$ perturbee par deux taches de periode 4 et $C=1$,
+            vous obtiendrez $TR=7$. La simulation avec offsets donne plus court.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Discutez charge, optimalite, exactitude de la RTA et comparez avec une simulation sur un cycle..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q4</h4>
+            <p><strong>a)</strong> $U = 1/4 + 3/6 + 1/4 = 1$.</p>
+            <p><strong>b)</strong> L'optimalite classique de RM ne s'applique pas directement telle quelle aux cas asynchrones a offsets imposes. Il faut analyser le cas concret.</p>
+            <p><strong>c)</strong> La RTA synchrone est ici <strong>pessimiste</strong> car elle suppose un alignement critique non realisable avec les offsets donnes.</p>
+            <p><strong>d) RTA synchrone :</strong></p>
+            <ul>
+                <li>Tache de plus haute priorite ($C=1,T=4$) : $TR=1$.</li>
+                <li>Autre tache ($C=1,T=4$) avec une tache de meme periode en interference: $TR=2$.</li>
+                <li>Tache ($C=3,T=6$) avec deux interferents ($C=1,T=4$): $w=3 \rightarrow 5 \rightarrow 7 \rightarrow 7$, donc $TR=7$ ($&gt;6$).</li>
+            </ul>
+            <p><strong>e)</strong> Une simulation sur un horizon couvrant le motif periodique (PPCM) est <strong>exacte</strong> pour ce scenario deterministe.</p>
+            <p><strong>f) Exemple de trace (priorites fixes, offsets respectes):</strong></p>
+
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0; width: 100%; overflow-x: auto;">
+                <svg width="650" height="170" viewBox="0 0 650 170" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px; flex-shrink: 0;">
+                    <!-- Grille -->
+                    <line x1="50" y1="25" x2="50" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="110" y1="25" x2="110" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="170" y1="25" x2="170" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="230" y1="25" x2="230" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="290" y1="25" x2="290" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="350" y1="25" x2="350" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="410" y1="25" x2="410" y2="135" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+
+                    <!-- Axes -->
+                    <line x1="50" y1="135" x2="620" y2="135" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="25" x2="50" y2="135" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks temps (1 unite = 60 px) -->
+                    <text x="50" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="110" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">1</text>
+                    <text x="170" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">2</text>
+                    <text x="230" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">3</text>
+                    <text x="290" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">4</text>
+                    <text x="350" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">5</text>
+                    <text x="410" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">6</text>
+
+                    <!-- Labels tâches -->
+                    <text x="12" y="48" font-size="12" fill="#f5f3f0" font-weight="600">tau3</text>
+                    <text x="12" y="78" font-size="12" fill="#f5f3f0" font-weight="600">tau1</text>
+                    <text x="12" y="108" font-size="12" fill="#f5f3f0" font-weight="600">tau2</text>
+
+                    <!-- Réveils -->
+                    <line x1="50" y1="40" x2="50" y2="135" stroke="#d67556" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="54" y="128" font-size="9" fill="#d67556">r1</text>
+                    <line x1="110" y1="40" x2="110" y2="135" stroke="#5ba6a0" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="114" y="128" font-size="9" fill="#5ba6a0">r2</text>
+                    <line x1="170" y1="25" x2="170" y2="135" stroke="#9e9a94" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="174" y="128" font-size="9" fill="#9e9a94">r3</text>
+
+                    <!-- Exécutions -->
+                    <!-- tau1 : [0,1] -->
+                    <rect x="50" y="65" width="60" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <text x="80" y="78" text-anchor="middle" font-size="9" fill="#f5f3f0">C1</text>
+
+                    <!-- tau2 : [1,2] -->
+                    <rect x="110" y="95" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="140" y="108" text-anchor="middle" font-size="9" fill="#f5f3f0">C2 (1/3)</text>
+
+                    <!-- tau3 : [2,3] -->
+                    <rect x="170" y="35" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="200" y="48" text-anchor="middle" font-size="9" fill="#f5f3f0">C3</text>
+
+                    <!-- tau2 : [3,4] -->
+                    <rect x="230" y="95" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="260" y="108" text-anchor="middle" font-size="9" fill="#f5f3f0">C2 (2/3)</text>
+
+                    <!-- tau1 : [4,5] -->
+                    <rect x="290" y="65" width="60" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <text x="320" y="78" text-anchor="middle" font-size="9" fill="#f5f3f0">C1</text>
+
+                    <!-- tau2 : [5,6] -->
+                    <rect x="350" y="95" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="380" y="108" text-anchor="middle" font-size="9" fill="#f5f3f0">C2 (3/3)</text>
+
+                    <!-- Deadline tau2 a t=7 (hors fenetre) -->
+                    <line x1="470" y1="25" x2="470" y2="135" stroke="#5ba6a0" stroke-width="1.2" stroke-dasharray="4 2"/>
+                    <text x="474" y="35" font-size="9" fill="#5ba6a0">D2=7</text>
+                    <text x="470" y="152" text-anchor="middle" font-size="10" fill="#9e9a94">7</text>
+                </svg>
+            </div>
+
+            <div class="terminal">
+                <code><span class="comment">t=0   tau1 relachee, executee [0,1]</span>
+<span class="comment">t=1   tau2 relachee, executee [1,2], reste 2</span>
+<span class="comment">t=2   tau3 relachee, preemption, executee [2,3]</span>
+<span class="comment">t=3   reprise tau2 [3,4], reste 1</span>
+<span class="comment">t=4   tau1 relachee, executee [4,5]</span>
+<span class="comment">t=5   reprise tau2 [5,6], fin</span></code>
+            </div>
+            <p class="inline-note">Dans cette simulation, la tache $(C=3,T=6,O=1)$ observe $TR=5$, inferieur a la borne RTA synchrone $7$. C'est le signe attendu d'une analyse pessimiste.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q5</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-avance">Avance</span>
+        </div>
+        <p>
+            <strong>Exercice 5 (PDF):</strong> systeme $S_4 = \{&lt;26,26,70&gt;, &lt;62,118,100&gt;\}$ sous DM.
+            Montrer que la pire instance de $\tau_2$ n'est pas forcement la premiere.
+        </p>
+
+        <div class="sub-question"><strong>d)</strong> Calculer $TR_2(1)$.</div>
+        <div class="sub-question"><strong>e)</strong> Calculer $TR_2(2)$.</div>
+        <div class="sub-question"><strong>f)</strong> Continuer jusqu'a l'instance critique (donnee: 7 instances, pic sur la 5e).</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> conclure apres $k=1$. Avec deadlines arbitraires, il faut iterer plusieurs
+            instances dans la meme periode d'activite.
+        </div>
+
+        <button class="hint-btn" data-hint="q5-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q5-h1">
+            Sous DM, $\tau_1$ est prioritaire ($D_1=26 &lt; D_2=118$).
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q5-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q5-h2">
+            Utiliser $w^*(k) = k\cdot 62 + \lceil w^*(k)/70 \rceil\cdot 26$ puis $TR_2(k) = w^*(k) - (k-1)\cdot 100$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Calculez TR2(1), TR2(2), puis jusqu'a k=7 et prenez le maximum..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q5</h4>
+            <p><strong>a) Charge:</strong> $U = 26/70 + 62/100 = 0.9914$.</p>
+            <p><strong>b) DM optimal ?</strong> Pas garanti en deadlines arbitraires ($D_2 &gt; T_2$).</p>
+            <p><strong>c) Nature de la RTA generalisee:</strong> exacte dans le cadre du modele fixe priorite de Lehoczky.</p>
+
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>$k$</th><th>$w^*(k)$</th><th>$TR_2(k)$</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>114</td><td>114</td></tr>
+                        <tr><td>2</td><td>202</td><td>102</td></tr>
+                        <tr><td>3</td><td>316</td><td>116</td></tr>
+                        <tr><td>4</td><td>404</td><td>104</td></tr>
+                        <tr><td>5</td><td>518</td><td><strong>118</strong></td></tr>
+                        <tr><td>6</td><td>606</td><td>106</td></tr>
+                        <tr><td>7</td><td>694</td><td>94</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p><strong>Conclusion:</strong> le pire cas est la <strong>5e instance</strong> avec $TR_2 = 118$, egal a la deadline.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q6</span>
+            <span class="question-pts">4 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>
+            <strong>Exercice 6 (PDF):</strong> en observant la RBF, discuter qualitativement l'effet d'une diminution de $C$,
+            d'une augmentation de $T$, et d'un reveil plus tardif ($r &gt; 0$) sur la duree de periode d'activite,
+            puis conclure sur les proprietes de viabilite de la RTA.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Qu'adviendrait-il si une duree d'execution etait moins longue ?</div>
+        <div class="sub-question"><strong>b)</strong> Qu'adviendrait-il si une periode etait plus longue que prevu ?</div>
+        <div class="sub-question"><strong>c)</strong> Qu'adviendrait-il si une date de reveil etait plus grande que 0 ?</div>
+        <div class="sub-question"><strong>d)</strong> Peut-on en deduire que la RTA est C-viable, r-viable et T-viable ?</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> melanger "preuve de correction" et "intuition".
+            Ici on attend une argumentation monotone: moins d'interference implique une periode d'activite non plus longue.
+        </div>
+
+        <button class="hint-btn" data-hint="q6-h1" data-label="Indice 1/1" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/1</span>
+        </button>
+        <div class="hint" id="q6-h1">
+            Diminuer $C$, augmenter $T$ ou retarder les reveils reduit la demande dans toute fenetre temporelle.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Repondez separement a) b) c), puis concluez d) sur C-viable, r-viable et T-viable..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4 style="margin-top:0;">Solution — Q6</h4>
+            <p><strong>a)</strong> Si une execution est plus courte, la demande processeur diminue, donc la periode d'activite ne peut que raccourcir (ou rester identique).</p>
+            <p><strong>b)</strong> Si une periode est plus longue, les reveils sont plus rares, donc l'interference baisse et la periode d'activite ne peut pas augmenter.</p>
+            <p><strong>c)</strong> Si un reveil est retarde ($r &gt; 0$), la demande est decalee vers la droite; dans la fenetre critique initiale, la charge est au plus identique, souvent plus faible.</p>
+            <p><strong>d)</strong> Oui. On en deduit une propriete de monotonicite de la borne RTA: elle est <strong>C-viable</strong>, <strong>T-viable</strong> et <strong>r-viable</strong> (une amelioration des parametres ne degrade pas la borne).</p>
+        </div>
+    </div>
+
+    <div class="bareme">
+        <span class="bareme-pts">4</span>
+        <span class="bareme-label">Q1 — RTA de base et point fixe</span>
+        <span class="bareme-desc">Iterations justes + interpretation du resultat</span>
+
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q2 — S1 (periodique synchrone)</span>
+        <span class="bareme-desc">Charge, statut RM, nature RTA, calculs complets</span>
+
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q3 — S2 (sporadique)</span>
+        <span class="bareme-desc">Detection du depassement de deadline par RTA</span>
+
+        <span class="bareme-pts">6</span>
+        <span class="bareme-label">Q4 — S3 (offsets) et comparaison simulation</span>
+        <span class="bareme-desc">Discussion pessimisme RTA + argumentation claire</span>
+
+        <span class="bareme-pts">6</span>
+        <span class="bareme-label">Q5 — RTA generalisee multi-instances</span>
+        <span class="bareme-desc">Calcul des k instances jusqu'au pire cas</span>
+
+        <span class="bareme-pts">4</span>
+        <span class="bareme-label">Q6 — Proprietes de viabilite</span>
+        <span class="bareme-desc">Explication monotone liee a la RBF</span>
+
+        <div class="bareme-total">Total : <strong>30 pts</strong></div>
+    </div>
+
+    <div class="pour-aller-plus-loin">
+        <strong>Pour aller plus loin</strong>
+        <ul>
+            <li>Verifier numeriquement les calculs RTA avec un petit script et comparer avec une simulation evenementielle.</li>
+            <li>Tester l'impact d'un jitter de reveil sur les bornes de reponse.</li>
+            <li>Comparer les conclusions RM et DM sur des jeux de taches a deadlines arbitraires.</li>
+        </ul>
     </div>
 </body>
 </html>

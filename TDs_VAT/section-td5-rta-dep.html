@@ -3,22 +3,642 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
     <script src="./section-utils.js" defer></script>
 </head>
 <body>
-    <h2>TD5 — RTA Dépendante</h2>
+    <h2>TD5 - RTA avec ressources partagees et dependances</h2>
+
     <div class="exo-header">
         <div class="exo-meta">
             <span class="diff-badge diff-moyen">Intermédiaire</span>
-            <span class="exo-points">◎ -- pts</span>
-            <span class="exo-time">⏱ -- min</span>
+            <span class="exo-points">◎ 26 pts</span>
+            <span class="exo-time">⏱ 90-120 min</span>
         </div>
         <div class="objectifs">
             <strong>Objectifs</strong>
             <ul>
-                <li>...</li>
+                <li>Calculer un facteur de blocage $B_i$ en PIP et PCP</li>
+                <li>Adapter les tests suffisants et la RTA en presence d'exclusion mutuelle</li>
+                <li>Introduire la gigue d'activation $J_i$ liee aux contraintes de precedence</li>
+                <li>Comparer borne analytique (RTA) et comportement simule</li>
             </ul>
         </div>
+        <p class="exo-prereq"><strong>Prerequis :</strong> <em>RTA classique, RM/DM, exclusion mutuelle, notion d'instant critique</em></p>
+    </div>
+
+    <div class="context-block">
+        <h3>Contexte pedagogique</h3>
+        <p>
+            La RTA classique suppose des taches independantes. Dans ce TD, on ajoute deux difficultes
+            realistes : l'<strong>exclusion mutuelle</strong> (mutex) et les <strong>contraintes de precedence</strong>
+            (communications qui introduisent de la gigue).
+        </p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Exemple concret</span></p>
+                <p>
+                    Dans un drone, une tache prioritaire de stabilisation peut attendre un verrou detenu
+                    par une tache moins prioritaire qui met a jour une structure partagee.
+                    Cette attente s'ajoute au temps de reponse: c'est le <strong>blocage</strong>.
+                </p>
+            </div>
+            <div class="callout-info">
+                <p><span class="badge badge-blue">Analogie</span></p>
+                <p>
+                    Meme avec une file prioritaire a l'entree d'un parking,
+                    si une voiture occupe deja la rampe de sortie, tout le monde attend.
+                    La priorite ne supprime pas un verrou deja pris.
+                </p>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Formules RTA avec blocage</span></p>
+            <p>Pour la $k$-ieme instance de $\tau_i$, on ajoute simplement $B_i$ :</p>
+            <p>$$w_i^0(k) = B_i + kC_i$$</p>
+            <p>$$w_i^*(k) = B_i + kC_i + \sum_{j\in hp(i)} \left\lceil \frac{w_i^*(k)}{T_j} \right\rceil C_j$$</p>
+            <p>
+                En pratique: plus $B_i$ est grand, plus la periode d'activite de $\tau_i$ est longue.
+                La condition obtenue est <strong>suffisante</strong> (souvent pessimiste), pas necessaire.
+            </p>
+        </div>
+
+        <p class="source">Source : ressources/TD_VAT_5_RTA_taches_dependantes.pdf</p>
+    </div>
+
+    <button class="hint-btn" data-hint="rappel-protocoles" data-label="Rappel de cours" data-close-label="Masquer le rappel" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Rappel de cours</span>
+    </button>
+    <div class="hint" id="rappel-protocoles">
+        <p><strong>PIP (Priority Inheritance):</strong> la tache qui detient un mutex herite temporairement d'une priorite plus haute.</p>
+        <p><strong>PCP / Immediate-PCP:</strong> chaque mutex a un plafond; une tache ne peut entrer en section critique que si les regles de plafond sont respectees.</p>
+        <ul>
+            <li>PIP limite l'inversion de priorite, mais peut empiler plusieurs blocages.</li>
+            <li>PCP garantit qu'une tache subit au plus un blocage de section critique moins prioritaire.</li>
+        </ul>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">PIP en pratique</span></p>
+            <p>
+                Une tache basse priorite qui detient deja un mutex peut recevoir temporairement
+                la priorite d'une tache haute qui attend ce mutex. Cela reduit l'inversion de priorite,
+                mais n'empeche pas qu'une tache soit bloquee plusieurs fois si plusieurs ressources sont en jeu.
+            </p>
+            <p class="inline-note">En borne pire cas, cela se traduit souvent par une somme de contributions de blocage.</p>
+        </div>
+        <div class="highlight-box">
+            <p><span class="badge badge-blue">PCP / Immediate-PCP en pratique</span></p>
+            <p>
+                Chaque mutex porte un plafond (la plus haute priorite des taches qui l'utilisent).
+                En PCP, l'acces est autorise selon le plafond systeme; en Immediate-PCP,
+                l'heritage vers ce plafond est applique des l'entree en section critique.
+            </p>
+            <p class="inline-note">Les deux ont la meme propriete utile ici: au plus un blocage de section critique inferieure.</p>
+        </div>
+    </div>
+
+    <div class="table-glass">
+        <table>
+            <thead>
+                <tr><th>Protocole</th><th>Idee cle</th><th>Effet sur $B_i$ (borne)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>PIP</strong></td><td>Heritage de priorite uniquement quand un conflit apparait</td><td>Plusieurs ressources peuvent contribuer: somme de maxima par ressource</td></tr>
+                <tr><td><strong>PCP</strong></td><td>Regle de plafond systeme pour controler les prises de mutex</td><td>Un seul blocage critique inferieur au pire: maximum global</td></tr>
+                <tr><td><strong>Immediate-PCP</strong></td><td>Heritage au plafond des l'entree en section critique</td><td>Meme borne pire cas que PCP pour le calcul de $B_i$</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="two-col">
+        <div class="highlight-box">
+            <p><span class="badge badge-green">Memo calcul de $B_i$</span></p>
+            <ul class="steps">
+                <li>Tracer mentalement une ligne sous la tache etudiee.</li>
+                <li>Pour chaque ressource vue des deux cotes de la ligne, relever les sections critiques moins prioritaires.</li>
+                <li>PIP: sommer les maxima par ressource.</li>
+                <li>PCP: prendre un seul maximum global.</li>
+            </ul>
+        </div>
+        <div class="callout-info">
+            <strong>Checklist :</strong>
+            <ul>
+                <li>Ai-je bien fixe un ordre de priorite explicite ?</li>
+                <li>Les durees sont-elles toutes dans la meme unite de temps ?</li>
+                <li>Ai-je distingue resultat exact et borne suffisante ?</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q1</span>
+            <span class="question-pts">6 pts</span>
+            <span class="diff-badge diff-fondamental">Fondamental</span>
+        </div>
+        <p>
+            <strong>Exercice 1 (Figure 6 du PDF)</strong> : calculer, pour chaque tache $\tau_i$,
+            le facteur de blocage en <strong>PCP</strong> et en <strong>PIP</strong>.
+            On suppose l'ordre de priorite $\tau_1 &gt; \tau_2 &gt; \dots &gt; \tau_7$.
+        </p>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Tache</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>R5</th><th>R6</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>tau1</strong></td><td>-</td><td>2</td><td>-</td><td>-</td><td>-</td><td>5</td></tr>
+                    <tr><td><strong>tau2</strong></td><td>2</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                    <tr><td><strong>tau3</strong></td><td>-</td><td>1</td><td>2</td><td>-</td><td>-</td><td>-</td></tr>
+                    <tr><td><strong>tau4</strong></td><td>3</td><td>-</td><td>-</td><td>2</td><td>2</td><td>-</td></tr>
+                    <tr><td><strong>tau5</strong></td><td>-</td><td>-</td><td>4</td><td>3</td><td>-</td><td>-</td></tr>
+                    <tr><td><strong>tau6</strong></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                    <tr><td><strong>tau7</strong></td><td>-</td><td>-</td><td>6</td><td>-</td><td>-</td><td>4</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> prendre seulement les ressources de la tache etudiee.
+            Le blocage vient des <em>sections critiques moins prioritaires</em> pouvant heriter d'une priorite
+            suffisante, pas uniquement des sections de la tache elle-meme.
+        </div>
+
+        <button class="hint-btn" data-hint="q1-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q1-h1">
+            Pour $\tau_2$, le PDF donne deja un repere :
+            $B_{2,PIP}=\max(3)+\max(1)+\max(2,4)=8$ et $B_{2,PCP}=\max(3,1,2,4)=4$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q1-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q1-h2">
+            Si aucune section critique moins prioritaire n'est visible "sous la ligne", alors le blocage vaut 0.
+            C'est le cas de la tache la plus basse priorite.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Calculez B_i,PCP et B_i,PIP pour i=1..7..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4>Solution - Q1</h4>
+
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>Tache</th><th>$B_{i,PCP}$</th><th>$B_{i,PIP}$</th><th>Commentaire</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>tau1</strong></td><td>4</td><td>5</td><td>Blocage possible via R2 et R6 depuis des taches moins prioritaires.</td></tr>
+                        <tr><td><strong>tau2</strong></td><td>4</td><td>8</td><td>Valeur de reference du PDF.</td></tr>
+                        <tr><td><strong>tau3</strong></td><td>6</td><td>13</td><td>R1, R3 et R6 contribuent en PIP.</td></tr>
+                        <tr><td><strong>tau4</strong></td><td>6</td><td>13</td><td>Contributions dominantes sur R3, R4 et R6.</td></tr>
+                        <tr><td><strong>tau5</strong></td><td>6</td><td>10</td><td>Blocage restant surtout sur R3 et R6.</td></tr>
+                        <tr><td><strong>tau6</strong></td><td>6</td><td>10</td><td>La tache elle-meme n'utilise pas de mutex, mais peut etre bloquee.</td></tr>
+                        <tr><td><strong>tau7</strong></td><td>0</td><td>0</td><td>Aucune tache moins prioritaire.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="inline-note">Sous PCP, une seule section critique moins prioritaire peut retarder la tache; sous PIP, plusieurs ressources peuvent se cumuler.</p>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q2</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>
+            <strong>Exercice 2</strong> : proposer une adaptation du <em>test hyperbolique</em> et du
+            test de <em>Liu &amp; Layland</em> aux taches partageant des ressources.
+            Justifier pourquoi ces versions restent des <strong>conditions suffisantes</strong>.
+        </p>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> oublier que $B_i$ depend de la tache analysee.
+            On ne met pas un unique "B global" identique pour toutes les taches.
+        </div>
+
+        <button class="hint-btn" data-hint="q2-h1" data-label="Indice 1/1" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/1</span>
+        </button>
+        <div class="hint" id="q2-h1">
+            Une adaptation simple et conservative consiste a remplacer $C_i$ par $C_i + B_i$
+            pour le test de la tache i (ou du prefixe jusqu'a i).
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Ecrivez les formules adaptees et expliquez pourquoi elles restent suffisantes..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4>Solution - Q2</h4>
+
+            <p><strong>Version Liu &amp; Layland adaptee (pour chaque prefixe i)</strong></p>
+            <p>$$\sum_{j=1}^{i}\frac{C_j}{T_j} + \frac{B_i}{T_i} \le i\left(2^{1/i}-1\right)$$</p>
+
+            <p><strong>Version hyperbolique adaptee</strong></p>
+            <p>$$\left(1+\frac{B_i}{T_i}\right)\prod_{j=1}^{i}\left(1+\frac{C_j}{T_j}\right) \le 2$$</p>
+
+            <div class="two-col">
+                <div class="highlight-box">
+                    <p><span class="badge badge-orange">Pourquoi c'est suffisant ?</span></p>
+                    <p>
+                        On majore explicitement une interference supplementaire (le blocage).
+                        Si la condition est satisfaite <em>malgre</em> cette majoration,
+                        l'ordonnancabilite est garantie.
+                    </p>
+                </div>
+                <div class="callout-info">
+                    <p><span class="badge badge-blue">Limite</span></p>
+                    <p>
+                        Echec du test ne signifie pas "non ordonnancable".
+                        Il faut alors passer a la RTA detaillee, plus precise.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">7 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p>
+            <strong>Exercice 3 (Figure 7)</strong> : systeme sporadique,
+            sections critiques de 0.5 unite de temps sur un mutex partage,
+            implementation POSIX avec protocole anti-inversion de priorite.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Identifier le protocole de gestion de ressources.</div>
+        <div class="sub-question"><strong>b)</strong> Choisir une affectation de priorites pertinente.</div>
+        <div class="sub-question"><strong>c)</strong> Calculer $B_i$ pour chaque tache.</div>
+        <div class="sub-question"><strong>d)</strong> Calculer les pires temps de reponse et conclure.</div>
+        <div class="sub-question"><strong>e)</strong> Interpreter qualitativement la simulation avec reveils initiaux decales ($T3$ a 0, $T2$ a 0.1, $T1$ a 0.2).</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> croire qu'une tache qui n'utilise pas directement le mutex ne peut jamais etre bloquee.
+            Avec un plafond eleve, une section critique moins prioritaire peut tout de meme retarder une tache intermediaire.
+        </div>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            En POSIX, le mode plafond correspond a une implementation de type Immediate-PCP.
+            Pour minimiser l'interference, un ordre RM ($T=5$, puis $8$, puis $12$) est un bon point de depart.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q3-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q3-h2">
+            Avec cet ordre, on peut obtenir $B_1=0.5$, $B_2=0.5$, $B_3=0$,
+            puis iterer la RTA classique avec blocage.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Detaillez protocole, priorites, Bi, calculs RTA et conclusion..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4>Solution - Q3</h4>
+
+            <p><strong>a) Protocole choisi :</strong> Immediate-PCP (plafond immediat, implementation POSIX).</p>
+            <div class="callout-info">
+                <p><strong>Chemin de pensee attendu :</strong></p>
+                <ul>
+                    <li>L'enonce indique une implementation POSIX avec protocole anti-inversion de priorite.</li>
+                    <li>Dans ce cadre, l'approche plafond immediate est le choix standard pour maitriser le pire cas.</li>
+                    <li>Pourquoi c'est utile pour la RTA : on peut borner le blocage avec la logique PCP (au pire un blocage critique inferieur).</li>
+                </ul>
+                <p class="inline-note">Autrement dit: ce choix n'est pas "magique", il est motive par la possibilite d'obtenir une borne de blocage exploitable analytiquement.</p>
+            </div>
+
+            <p><strong>b) Affectation retenue :</strong> $\tau_1(T=5)$ &gt; $\tau_2(T=8)$ &gt; $\tau_3(T=12)$.</p>
+            <div class="highlight-box">
+                <p><span class="badge badge-orange">Pourquoi cet ordre ?</span></p>
+                <ul>
+                    <li>Sans contrainte supplementaire, un premier reflexe robuste est RM : plus petite periode, plus haute priorite.</li>
+                    <li>Ici, cela donne naturellement $T=5$ puis $8$ puis $12$.</li>
+                    <li>Ce choix n'est pas presente comme "optimal universel", mais comme une affectation raisonnable a tester en premier.</li>
+                </ul>
+                <p class="inline-note">Le point important pedagogique: annoncer la regle de decision avant de lancer les calculs.</p>
+            </div>
+
+            <p><strong>c) Facteurs de blocage :</strong> $B_1=0.5$, $B_2=0.5$, $B_3=0$.</p>
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>Tache</th><th>Moins prioritaires existantes ?</th><th>Blocage retenu</th><th>Justification</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>$\tau_1$</strong></td><td>Oui ($\tau_2$, $\tau_3$)</td><td>$B_1=0.5$</td><td>Une section critique inferieure de 0.5 peut avoir commence juste avant l'instant critique.</td></tr>
+                        <tr><td><strong>$\tau_2$</strong></td><td>Oui ($\tau_3$)</td><td>$B_2=0.5$</td><td>Meme logique: au pire une section critique inferieure de 0.5 retarde $\tau_2$.</td></tr>
+                        <tr><td><strong>$\tau_3$</strong></td><td>Non</td><td>$B_3=0$</td><td>Aucune tache moins prioritaire ne peut la bloquer.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Comment lire ces $B_i$ ?</span></p>
+                <ul>
+                    <li><strong>$B_1=0.5$ :</strong> la tache la plus prioritaire peut encore attendre une section critique inferieure deja commencee au pire moment.</li>
+                    <li><strong>$B_2=0.5$ :</strong> meme logique pour la tache intermediaire.</li>
+                    <li><strong>$B_3=0$ :</strong> en plus basse priorite, elle n'est pas bloquee par des taches moins prioritaires (il n'y en a pas).</li>
+                </ul>
+            </div>
+
+            <p><strong>d) RTA</strong></p>
+            <ul>
+                <li>
+                    <strong>Tache $\tau_1$ :</strong>
+                    $$R_1 = B_1 + C_1 = 0.5 + 2 = 2.5 \le 5$$
+                    La deadline est respectee avec une marge de 2.5.
+                </li>
+                <li>
+                    <strong>Tache $\tau_2$ :</strong>
+                    $$w = 0.5 + 2 + \left\lceil\frac{w}{5}\right\rceil 2$$
+                    Iterations detaillees:
+                    $w_0=2.5$,
+                    $w_1=0.5+2+\lceil 2.5/5 \rceil\cdot 2=4.5$,
+                    $w_2=0.5+2+\lceil 4.5/5 \rceil\cdot 2=4.5$.
+                    Point fixe atteint, donc $R_2=4.5 \le 8$.
+                </li>
+                <li>
+                    <strong>Tache $\tau_3$ :</strong>
+                    $$w = 3 + \left\lceil\frac{w}{5}\right\rceil 2 + \left\lceil\frac{w}{8}\right\rceil 2$$
+                    Iterations detaillees:
+                    $w_0=3$,
+                    $w_1=7$,
+                    $w_2=9$,
+                    $w_3=11$,
+                    $w_4=13$,
+                    $w_5=13$.
+                    Le point fixe vaut 13, donc $R_3=13 &gt; 12$.
+                </li>
+            </ul>
+
+            <p><strong>Conclusion :</strong> avec cette affectation, le systeme n'est pas ordonnancable car la tache de periode 12 depasse son echeance.</p>
+
+            <div class="callout-info">
+                <strong>Lecture detaillee de la simulation demandee en e)</strong>
+                <p>
+                    Les offsets initiaux (0, 0.1, 0.2) peuvent faire croire a un debut "propre" car les taches
+                    ne se reveillent pas exactement ensemble. Pourtant, quand le systeme tourne, les reveils se recroisent
+                    et l'interference reapparait de facon recurrente.
+                </p>
+                <p>
+                    C'est exactement ce que la RTA capture avec le point fixe de $\tau_3$:
+                    meme si quelques instances passent, la borne pire cas depasse la deadline.
+                    La simulation n'infirme donc pas la RTA; elle illustre comment on se rapproche de ce pire cas.
+                </p>
+            </div>
+
+            <div class="highlight-box">
+                <p><span class="badge badge-orange">Synthese pedagogique Q3</span></p>
+                <ul class="steps">
+                    <li>Identifier le protocole (ici Immediate-PCP) pour choisir la bonne logique de blocage.</li>
+                    <li>Calculer $B_i$ avant toute iteration RTA.</li>
+                    <li>Trouver le point fixe de chaque tache dans l'ordre de priorite.</li>
+                    <li>Comparer chaque $R_i$ a sa deadline et conclure systeme faisable / non faisable.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="context-block">
+        <h3>Vulgarisation - Precedence et gigue d'activation</h3>
+        <p>
+            Quand une tache $\tau_b$ depend d'une tache $\tau_a$ (precedence $\tau_a \rightarrow \tau_b$),
+            $\tau_b$ ne peut pas partir a heure fixe: elle attend la fin de $\tau_a$.
+            Si le temps de reponse de $\tau_a$ varie d'une instance a l'autre,
+            l'instant d'activation de $\tau_b$ varie aussi.
+            Cette variation s'appelle la <strong>gigue</strong> ($J$).
+        </p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Image mentale simple</span></p>
+                <p>
+                    Pensez a une chaine de production: le poste B ne commence que quand le poste A livre sa piece.
+                    Meme si A est cense livrer toutes les 10 min, il peut livrer un peu plus tot ou un peu plus tard.
+                    B garde sa periode moyenne, mais ses departs "tremblent" autour de cette periode: c'est la gigue.
+                </p>
+            </div>
+            <div class="callout-info">
+                <p><span class="badge badge-blue">Point important</span></p>
+                <p>
+                    Une tache peut avoir une periode nominale $T_i$, tout en ayant parfois moins de $T_i$
+                    entre deux activations successives, a cause de la variabilite de la tache precedente.
+                </p>
+                <p class="inline-note">Dans le cas typique de precedence, on rencontre souvent $J_b = TR_a$.</p>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Ce qu'il faut retenir pour le calcul RTA avec gigue</span></p>
+            <ul>
+                <li>La gigue des taches prioritaires apparait dans le point fixe: on compte des reveils sur $[-J_j, t[$ au lieu de $[0, t[$.</li>
+                <li>La gigue de la tache etudiee s'ajoute au temps de reponse final.</li>
+                <li>Le blocage $B_i$ reste present si des ressources partagees existent.</li>
+            </ul>
+        </div>
+
+        <div class="table-glass">
+            <table>
+                <thead>
+                    <tr><th>Etape</th><th>Formule</th><th>Interpretation</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Initialisation</strong></td>
+                        <td>$w_i^0(k)=B_i+kC_i$</td>
+                        <td>Charge propre de $\tau_i$ + blocage critique.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Point fixe</strong></td>
+                        <td>$w_i^*(k)=B_i+kC_i+\sum_{j\in hp(i)}\left\lceil\frac{w_i^*(k)+J_j}{T_j}\right\rceil C_j$</td>
+                        <td>Interferences des plus prioritaires en tenant compte de leur gigue.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Temps de reponse</strong></td>
+                        <td>$TR_i(k)=w_i^*(k)-(k-1)T_i+J_i$</td>
+                        <td>On re-ajoute le decalage d'activation de la tache etudiee.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout-info">
+            <strong>Regle de lecture rapide:</strong>
+            <ul>
+                <li>Les $J_j$ sont <strong>dans les plafonds</strong> du point fixe (ils modifient le nombre de reveils interferents).</li>
+                <li>Le $J_i$ est <strong>a la fin</strong> dans $TR_i(k)$ (il decale la reference temporelle de la tache etudiee).</li>
+                <li>Si la gigue diminue, la borne RTA ne se degrade pas: la methode est dite J-viable.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">8 pts</span>
+            <span class="diff-badge diff-avance">Avancé</span>
+        </div>
+        <p>
+            <strong>Exercice 4 (Figure 10)</strong> : systeme avec exclusion mutuelle et precedence.
+            Les acces au tableau noir coutent 0.5, les operations messageQueue 0.6 (en section critique),
+            sous VxWorks avec protocole anti-inversion.
+        </p>
+
+        <div class="sub-question"><strong>a)</strong> Identifier le protocole de gestion de ressources.</div>
+        <div class="sub-question"><strong>b)</strong> Existe-t-il une affectation de priorites optimale generale ?</div>
+        <div class="sub-question"><strong>c)</strong> Expliquer pourquoi placer $T3$ au-dessus de $T1$ cree un probleme pour le calcul de $J_3$.</div>
+        <div class="sub-question"><strong>d)</strong> Calculer les facteurs de blocage.</div>
+        <div class="sub-question"><strong>e)</strong> Calculer les pires temps de reponse avec gigue et conclure.</div>
+
+        <div class="erreur-freq">
+            <strong>Piege courant :</strong> oublier le terme $+J_i$ dans le temps de reponse final,
+            ou oublier le $+J_j$ dans le numerateur des taches prioritaires pendant la recherche du point fixe.
+        </div>
+
+        <button class="hint-btn" data-hint="q4-h1" data-label="Indice 1/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 1/2</span>
+        </button>
+        <div class="hint" id="q4-h1">
+            La communication de precedence est de type $T1 \rightarrow T3$, donc un choix robuste est de garder $T1$ plus prioritaire que $T3$.
+        </div>
+
+        <button class="hint-btn hint-locked" data-hint="q4-h2" data-label="Indice 2/2" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice 2/2</span>
+        </button>
+        <div class="hint" id="q4-h2">
+            Avec $B_1=B_2=0.6$, $B_3=0$, on obtient typiquement $R_1=2.6$, $R_2=4.6$,
+            puis $J_3=R_1$ et $R_3$ via la formule RTA avec gigue.
+        </div>
+    </div>
+
+    <div class="reponse-zone" contenteditable="true" data-placeholder="Detaillez protocole, priorites, Bi, Ji, iterations et conclusion..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <h4>Solution - Q4</h4>
+
+            <p><strong>a)</strong> Protocole plafond (Immediate-PCP en implementation RTOS).</p>
+            <p><strong>b)</strong> Non, il n'existe pas d'affectation universellement optimale dans ce contexte contraint (ressources + precedence).</p>
+
+            <div class="highlight-box">
+                <p><span class="badge badge-red">Point cle de c)</span></p>
+                <p>
+                    Si $T3$ est plus prioritaire que $T1$, alors la gigue $J_3=TR_1$ depend d'un $TR_1$
+                    lui-meme degrade par les preemptions de $T3$. On introduit une dependance circulaire
+                    difficile a borner proprement. Choisir $T1 &gt; T3$ casse cette boucle.
+                </p>
+            </div>
+
+            <p><strong>Choix de priorite utilise :</strong> $T1$ (10) &gt; $T2$ (12) &gt; $T3$.</p>
+            <p><strong>d) Facteurs de blocage :</strong> $B_1=0.6$, $B_2=0.6$, $B_3=0$.</p>
+
+            <p><strong>e) RTA avec gigue</strong></p>
+            <ul>
+                <li>$TR_1 = B_1 + C_1 = 0.6 + 2 = 2.6$ donc $J_1=0$ et $J_3=TR_1=2.6$.</li>
+                <li>
+                    $T2$ (sans precedence):
+                    $$w = 0.6 + 2 + \left\lceil\frac{w}{10}\right\rceil 2$$
+                    $2.6 \rightarrow 4.6 \rightarrow 4.6$, donc $TR_2=4.6 \le 12$.
+                </li>
+                <li>
+                    $T3$ (avec gigue):
+                    $$w = 3 + \left\lceil\frac{w+J_1}{10}\right\rceil 2 + \left\lceil\frac{w+J_2}{12}\right\rceil 2$$
+                    avec $J_1=J_2=0$: $3 \rightarrow 7 \rightarrow 7$, puis
+                    $$TR_3 = w + J_3 = 7 + 2.6 = 9.6$$
+                </li>
+            </ul>
+
+            <p><strong>Conclusion :</strong> pour des echeances implicites (sur requete), le systeme est ordonnancable avec cette affectation.</p>
+
+            <p class="inline-note">La valeur $TR_3$ inclut explicitement la latence de precedence via $J_3$; c'est l'element pedagogique cle de cet exercice.</p>
+        </div>
+    </div>
+
+    <div class="bareme">
+        <span class="bareme-pts">6</span>
+        <span class="bareme-label">Q1 - Blocages PIP/PCP</span>
+        <span class="bareme-desc">Methode + valeurs coherentes pour toutes les taches</span>
+
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q2 - Tests suffisants adaptes</span>
+        <span class="bareme-desc">Formules correctes + justification de suffisance</span>
+
+        <span class="bareme-pts">7</span>
+        <span class="bareme-label">Q3 - RTA avec exclusion mutuelle</span>
+        <span class="bareme-desc">Protocole, Bi, iterations RTA, conclusion argumentee</span>
+
+        <span class="bareme-pts">8</span>
+        <span class="bareme-label">Q4 - RTA avec gigue et precedence</span>
+        <span class="bareme-desc">Gestion de Ji, priorites coherentes, calcul complet</span>
+
+        <div class="bareme-total">Total : <strong>26 pts</strong></div>
+    </div>
+
+    <div class="pour-aller-plus-loin">
+        <strong>Pour aller plus loin</strong>
+        <ul>
+            <li>Comparer PIP et PCP sur le meme jeu de taches en mesurant la marge sur les deadlines.</li>
+            <li>Recalculer Q3 avec une autre affectation de priorites et verifier si la conclusion change.</li>
+            <li>Ajouter un jitter non nul sur une tache prioritaire et observer l'effet sur la convergence du point fixe.</li>
+        </ul>
     </div>
 </body>
 </html>
