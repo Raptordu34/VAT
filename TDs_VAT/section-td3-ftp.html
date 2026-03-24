@@ -3,6 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./components.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$",  right: "$",  display: false }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
     <script src="./section-utils.js" defer></script>
 </head>
 <body>
@@ -29,11 +43,27 @@
     <div class="context-block">
         <h3>Contexte - Pourquoi des tests polynomiaux ?</h3>
         <p>
-            En theorie, la simulation peut etre une condition necessaire et suffisante d'ordonnancabilite
-            pour des taches independantes en monoprocesseur. En pratique, elle devient vite couteuse
-            (horizon de simulation potentiellement tres grand) et perd ses proprietes en presence
-            de facteurs comme des sections non preemptibles, des exclusions mutuelles ou des precedences.
+            En theorie, la simulation sur l'hyperpériode (PPCM des périodes) peut etre une condition necessaire et suffisante d'ordonnancabilite
+            pour des taches independantes en monoprocesseur. En pratique, elle souffre d'une <strong>explosion combinatoire</strong> (horizon $\ge 2^n$) : 
+            l'horizon de simulation devient gigantesque avec des nombres premiers, et elle perd toute garantie en presence
+            de facteurs pratiques (exclusions mutuelles, parties non préemptibles, suspensions).
         </p>
+
+        <div class="two-col">
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Rate Monotonic (RM)</span></p>
+                <p>
+                    L'affectation RM est <strong>optimale</strong> pour des tâches indépendantes, à requêtes synchrones, avec $D_i = T_i$. 
+                    Cela signifie que si un jeu de tâches est ordonnançable avec une politique de priorités fixes dans cette classe, alors il le sera forcément par RM.
+                </p>
+            </div>
+            <div class="callout-info">
+                <p><span class="badge badge-blue">Analogie</span></p>
+                <p><strong>Intuition RM :</strong> Pensez à l'organisation de tâches. Vous donnez naturellement 
+                la priorité aux tâches très récurrentes (arroser des plantes fragiles tous les jours) 
+                par rapport aux tâches de fond (nettoyer les vitres au mois).</p>
+            </div>
+        </div>
         <p>
             Le TD explore donc des tests polynomiaux <strong>suffisants</strong> (L&amp;L, borne hyperbolique),
             des affectations optimales selon le contexte (RM, DM), puis une recherche systematique de priorites
@@ -48,8 +78,8 @@
                 <tbody>
                     <tr><td><strong>L&amp;L</strong></td><td>Condition suffisante d'ordonnancabilite</td><td>Peut rejeter des systemes pourtant ordonnancables</td></tr>
                     <tr><td><strong>Borne hyperbolique</strong></td><td>Condition suffisante plus puissante que L&amp;L</td><td>Reste conservative</td></tr>
-                    <tr><td><strong>RM</strong></td><td>Affectation optimale si <code>D_i = T_i</code> et hypotheses classiques</td><td>Perd l'optimalite si hypothese cle manquante</td></tr>
-                    <tr><td><strong>DM</strong></td><td>Affectation optimale si <code>D_i &lt;= T_i</code> et hypotheses classiques</td><td>Meme limite : depend du cadre d'application</td></tr>
+                    <tr><td><strong>RM</strong></td><td>Affectation optimale si $D_i = T_i$ et hypotheses classiques</td><td>Perd l'optimalite si hypothese cle manquante</td></tr>
+                    <tr><td><strong>DM</strong></td><td>Affectation optimale si $D_i \le T_i$ et hypotheses classiques</td><td>Meme limite : depend du cadre d'application</td></tr>
                     <tr><td><strong>OPA</strong></td><td>Trouve une affectation FTP ordonnancable si conditions satisfaites</td><td>Dependant du test utilise pour valider chaque tache</td></tr>
                 </tbody>
             </table>
@@ -61,24 +91,44 @@
         <span class="btn-label">Rappel de cours</span>
     </button>
     <div class="hint" id="rappel-formules">
-        <p><strong>Charge processeur :</strong> <code>U = Somme(C_i / T_i)</code>.</p>
-        <p><strong>Borne L&amp;L (n taches) :</strong> <code>U &lt;= n(2^(1/n) - 1)</code>.</p>
-        <p><strong>Borne hyperbolique :</strong> <code>Produit(1 + U_i) &lt;= 2</code>.</p>
-        <p><strong>Cas contraint <code>D_i &lt;= T_i</code> :</strong> on peut remplacer <code>U_i</code> par la densite <code>C_i / D_i</code> pour ces tests, au prix d'un pessimisme accru.</p>
+        <p><strong>Charge processeur :</strong> $$U = \sum_{i=1}^n \frac{C_i}{T_i}$$</p>
+        <p><strong>Borne L&amp;L (n tâches) :</strong> $$U \le n(2^{1/n} - 1)$$</p>
+        <p><strong>Borne hyperbolique :</strong> $$\prod_{i=1}^n (1 + U_i) \le 2$$</p>
+        <div class="callout-info" style="margin-top: 15px;">
+            <p><strong>Hypothèses de validité (Rate Monotonic & L&amp;L) :</strong></p>
+            <ol>
+                <li>Toutes les tâches sont <strong>indépendantes</strong> et <strong>préemptibles</strong>.</li>
+                <li>Le système est <strong>monoprocesseur</strong>.</li>
+                <li>Il existe un <strong>instant critique</strong> (i.e. les tâches peuvent être activées simultanément).</li>
+                <li>Les tâches sont <strong>périodiques</strong> ou <strong>sporadiques</strong> (dans le cas sporadique, la condition 3 est forcément satisfaite).</li>
+                <li>Les tâches sont à <strong>échéance sur requête</strong> ($D_i = T_i$).</li>
+            </ol>
+        </div>
+        <p><strong>Cas contraint $D_i \le T_i$ :</strong> on peut remplacer $U_i$ par la densité $\frac{C_i}{D_i}$ pour ces tests, au prix d'un pessimisme accru.</p>
     </div>
 
     <div class="two-col">
         <div class="highlight-box">
-            <p><span class="badge badge-green">Exemple</span></p>
-            <p>
-                Un systeme peut echouer a L&amp;L et rester ordonnancable : cela signifie seulement
-                que le test n'a pas pu <em>prouver</em> l'ordonnancabilite, pas qu'il a prouve l'echec.
+            <p><span class="badge badge-green">Bornes de L&amp;L vs Hyperbolique</span></p>
+            <div style="margin-top: 10px;">
+                <table>
+                    <thead>
+                        <tr><th>Test Succinct</th><th>Formule (n)</th><th>Seuil Limite Analytique</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>L&amp;L</strong></td><td>$\sum U_i \le n(2^{1/n}-1)$</td><td>$0.69$ pour $n \to \infty$</td></tr>
+                        <tr><td><strong>Hyperbolique</strong></td><td>$\prod (U_i+1) \le 2$</td><td>Supérieur à L&amp;L</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p style="margin-top:10px;">
+                <em>La borne hyperbolique est toujours plus puissante que L&amp;L, parce que le "produit des charges" capture mieux la distribution qu'une charge écrasée par une somme brute.</em>
             </p>
         </div>
         <div class="callout-info">
-            <p><span class="badge badge-blue">Analogie</span></p>
-            <p><strong>Intuition :</strong> un test suffisant ressemble a un detecteur de metal trop strict a l'entree d'un examen :
-            s'il vous laisse passer, c'est bon ; s'il sonne, vous n'etes pas forcement en faute.</p>
+            <p><span class="badge badge-blue">Analogie Analytique</span></p>
+            <p><strong>Intuition :</strong> un test suffisant d'ordonnançabilité ressemble a un detecteur de metal sur-protecteur à l'entree d'un examen :
+            s'il vous laisse passer (le test valide), c'est gagné et 100% garanti ; s'il sonne (vous échouez), vous etes peut-être dans les clous tout de même. Le "non" n'est pas définitif. D'où les tests exacts plus complexes ensuite.</p>
         </div>
     </div>
 
@@ -89,12 +139,12 @@
         <div class="table-glass">
             <table>
                 <thead>
-                    <tr><th>Tache</th><th>Date de reveil r_i</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                    <tr><th>Tache</th><th>Reveil $r_i$</th><th>WCET $C_i$</th><th>Delai $D_i$</th><th>Periode $T_i$</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><strong>tau1</strong></td><td>0</td><td>8</td><td>30</td><td>30</td></tr>
-                    <tr><td><strong>tau2</strong></td><td>0</td><td>6</td><td>20</td><td>20</td></tr>
-                    <tr><td><strong>tau3</strong></td><td>0</td><td>4</td><td>15</td><td>15</td></tr>
+                    <tr><td><strong>$\tau_1$</strong></td><td>0</td><td>8</td><td>30</td><td>30</td></tr>
+                    <tr><td><strong>$\tau_2$</strong></td><td>0</td><td>6</td><td>20</td><td>20</td></tr>
+                    <tr><td><strong>$\tau_3$</strong></td><td>0</td><td>4</td><td>15</td><td>15</td></tr>
                 </tbody>
             </table>
         </div>
@@ -107,7 +157,7 @@
             <span class="diff-badge diff-fondamental">Fondamental</span>
         </div>
 
-        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur <code>U</code> du systeme et conclure.</div>
+        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur $U$ du systeme et conclure.</div>
         <div class="sub-question"><strong>b)</strong> RM donne-t-il une affectation de priorites fixes optimale ici ?</div>
         <div class="sub-question"><strong>c)</strong> Appliquer les tests L&amp;L et hyperbolique, puis conclure.</div>
         <div class="sub-question"><strong>d)</strong> En comparant avec une simulation, que doit-on retenir sur la portee des tests ?</div>
@@ -123,8 +173,8 @@
             <span class="btn-label">Indice 1/2</span>
         </button>
         <div class="hint" id="q1-h1">
-            Calculer d'abord <code>U = 8/30 + 6/20 + 4/15</code>, puis comparer a
-            <code>3(2^(1/3)-1)</code> pour L&amp;L.
+            Calculer d'abord $U = \frac{8}{30} + \frac{6}{20} + \frac{4}{15}$, puis comparer a
+            $3(2^{1/3}-1)$ pour L&amp;L.
         </div>
 
         <button class="hint-btn hint-locked" data-hint="q1-h2" data-label="Indice 2/2" aria-expanded="false">
@@ -132,7 +182,7 @@
             <span class="btn-label">Indice 2/2</span>
         </button>
         <div class="hint" id="q1-h2">
-            Pour la borne hyperbolique : verifier <code>(1+8/30)(1+6/20)(1+4/15) &lt;= 2</code>.
+            Pour la borne hyperbolique : verifier $(1+\frac{8}{30})(1+\frac{6}{20})(1+\frac{4}{15}) \le 2$.
             Pensez ensuite a distinguer "test qui ne prouve pas" et "simulation qui contre-exemple".
         </div>
     </div>
@@ -148,18 +198,25 @@
             <h4 style="margin-top:0;">Solution - Q1</h4>
 
             <p><strong>a) Charge :</strong></p>
-            <pre><code>U = 8/30 + 6/20 + 4/15
-  = 0.2667 + 0.3000 + 0.2667
-  = 0.8334 (approx.)</code></pre>
+            <p>
+            $$ \begin{aligned}
+            U &= \frac{8}{30} + \frac{6}{20} + \frac{4}{15} \\
+              &= 0.2667 + 0.3000 + 0.2667 \\
+              &= 0.8334 \text{ (approx.)}
+            \end{aligned} $$
+            </p>
+            <div class="highlight-box">
+                <p><span class="badge badge-green">Conclusion d'utilisation</span></p>
+                <p>Puisque $U \le 1$, la condition nécessaire d'ordonnançabilité est vérifiée. Le processeur ne sera pas fondamentalement en surcharge. Cependant, comme $U > 0$, il faut aller plus loin en utilisant des tests suffisants (L&L, hyperbolique) ou des tests exacts (temps de réponse).</p>
+            </div>
 
-            <p><strong>b) Optimalite RM :</strong> oui, car le cadre satisfait les hypotheses usuelles
-            (taches independantes preemptibles, monoprocesseur, reveils simultanes, taches periodiques, <code>D_i = T_i</code>).</p>
+            <p><strong>b) Optimalité RM :</strong> oui, car le cadre satisfait les hypothèses usuelles 
+            (tâches indépendantes préemptibles, monoprocesseur, réveils simultanés, tâches périodiques, $D_i = T_i$).</p>
 
             <p><strong>c) Tests polynomiaux :</strong></p>
             <ul class="steps">
-                <li>L&amp;L pour <code>n = 3</code> : <code>U_b = 3(2^(1/3)-1) = 0.7798</code>. Comme <code>0.8334 &gt; 0.7798</code>, test non valide.</li>
-                <li>Hyperbolique : <code>(1+0.2667)(1+0.3000)(1+0.2667) = 2.0862 &gt; 2</code>, test non valide.</li>
-            </ul>
+                <li><strong>L&amp;L</strong> pour $n = 3$ : $U_{L\&L} = 3(2^{1/3}-1) \approx 0.7798$. Comme $0.8334 > 0.7798$, test non valide.</li>
+                <li><strong>Hyperbolique</strong> : $(1+0.2667)(1+0.3000)(1+0.2667) \approx 2.0862 > 2$, test non valide.</li>
 
             <p><strong>d) Conclusion avec simulation :</strong> une simulation peut montrer que le systeme est ordonnancable
             malgre l'echec des bornes. A retenir : echec d'un test suffisant != preuve de non-ordonnancabilite.</p>
@@ -178,12 +235,12 @@
         <div class="table-glass">
             <table>
                 <thead>
-                    <tr><th>Tache</th><th>Date de reveil r_i</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                    <tr><th>Tache</th><th>Date de reveil $r_i$</th><th>WCET $C_i$</th><th>Delai $D_i$</th><th>Periode $T_i$</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><strong>tau1</strong></td><td>8</td><td>8.05</td><td>30</td><td>30</td></tr>
-                    <tr><td><strong>tau2</strong></td><td>4</td><td>4.5</td><td>20</td><td>20</td></tr>
-                    <tr><td><strong>tau3</strong></td><td>0</td><td>4.3</td><td>15</td><td>15</td></tr>
+                    <tr><td><strong>$\tau_1$</strong></td><td>8</td><td>8.05</td><td>30</td><td>30</td></tr>
+                    <tr><td><strong>$\tau_2$</strong></td><td>4</td><td>4.5</td><td>20</td><td>20</td></tr>
+                    <tr><td><strong>$\tau_3$</strong></td><td>0</td><td>4.3</td><td>15</td><td>15</td></tr>
                 </tbody>
             </table>
         </div>
@@ -196,7 +253,7 @@
             <span class="diff-badge diff-moyen">Intermediaire</span>
         </div>
 
-        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur <code>U</code> et conclure.</div>
+        <div class="sub-question"><strong>a)</strong> Calculer l'utilisation processeur $U$ et conclure.</div>
         <div class="sub-question"><strong>b)</strong> RM est-il garanti optimal dans ce contexte ?</div>
         <div class="sub-question"><strong>c)</strong> Peut-on tout de meme appliquer L&amp;L et hyperbolique ? Si oui, conclure.</div>
 
@@ -211,8 +268,8 @@
             <span class="btn-label">Indice 1/2</span>
         </button>
         <div class="hint" id="q2-h1">
-            <code>U = 8.05/30 + 4.5/20 + 4.3/15 = 0.78</code>.
-            Comparez ce resultat a la borne L&amp;L pour <code>n=3</code>.
+            $U = \frac{8.05}{30} + \frac{4.5}{20} + \frac{4.3}{15} = 0.78$.
+            Comparez ce resultat a la borne L&amp;L pour $n=3$.
         </div>
 
         <button class="hint-btn hint-locked" data-hint="q2-h2" data-label="Indice 2/2" aria-expanded="false">
@@ -220,7 +277,7 @@
             <span class="btn-label">Indice 2/2</span>
         </button>
         <div class="hint" id="q2-h2">
-            Hyperbolique : <code>(1+8.05/30)(1+4.5/20)(1+4.3/15)</code> est tres proche de 2.
+            Hyperbolique : $(1+\frac{8.05}{30})(1+\frac{4.5}{20})(1+\frac{4.3}{15})$ est tres proche de 2.
             C'est un bon exemple ou hyperbolique passe alors que L&amp;L echoue.
         </div>
     </div>
@@ -236,19 +293,33 @@
             <h4 style="margin-top:0;">Solution - Q2</h4>
 
             <p><strong>a) Charge :</strong></p>
-            <pre><code>U = 8.05/30 + 4.5/20 + 4.3/15
-  = 0.2683 + 0.2250 + 0.2867
-  = 0.7800</code></pre>
+            <p>
+            $$ \begin{aligned}
+            U &= \frac{8.05}{30} + \frac{4.5}{20} + \frac{4.3}{15} \\
+              &= 0.2683 + 0.2250 + 0.2867 \\
+              &= 0.7800
+            \end{aligned} $$
+            </p>
+              
+              <div class="highlight-box">
+                  <p><span class="badge badge-green">Conclusion d'utilisation</span></p>
+                  <p>Puisque $U = 0.78 \le 1$, la condition nécessaire d'ordonnançabilité est vérifiée. Le système ne sera pas fondamentalement en surcharge. Il faut cependant procéder aux tests suffisants pour s'assurer que l'ordonnancement est garanti sous priorités fixes.</p>
+              </div>
 
-            <p><strong>b) RM optimal ?</strong> pas garanti, car les reveils sont differes (pas d'instant critique synchrone explicite dans l'enonce).</p>
+              <p><strong>b) RM optimal ?</strong> pas garanti, car les reveils s'effectuent à des instants différés (pas d'instant critique synchrone explicite dans l'enonce).</p>
 
-            <p><strong>c) Application des bornes :</strong></p>
-            <ul class="steps">
-                <li>L&amp;L : <code>0.7800 &gt; 0.7798</code> - echec (de peu).</li>
-                <li>Hyperbolique : <code>(1+0.2683)(1+0.2250)(1+0.2867) = 1.9998 &lt;= 2</code> - validation.</li>
-            </ul>
+              <p><strong>c) Application des bornes :</strong></p>
+              <ul class="steps">
+                  <li><strong>L&amp;L</strong> : $0.7800 > 0.7798$ - echec (de peu).</li>
+                  <li><strong>Hyperbolique</strong> : $(1+0.2683)(1+0.2250)(1+0.2867) \approx 1.9998 \le 2$ - validation.</li>
+              </ul>
 
-            <p class="inline-note">La borne hyperbolique est bien strictement plus puissante que L&amp;L : elle valide ici un systeme que L&amp;L ne valide pas.</p>
+              <div class="highlight-box">
+                  <p><span class="badge badge-green">Conclusion finale</span></p>
+                  <p>Bien que le test de Liu & Layland ait échoué de très peu, le test de la borne hyperbolique est respecté (produit $\le 2$). Il s'agit d'une condition suffisante : on peut donc conclure avec certitude que <strong>le système est ordonnançable</strong>.</p>
+              </div>
+
+              <p class="inline-note">La borne hyperbolique est bien strictement plus puissante que L&amp;L : elle valide ici un systeme que L&amp;L ne valide pas.</p>
         </div>
     </div>
 
@@ -267,16 +338,46 @@
     <h3>Exercice 3 - DM et densites</h3>
 
     <div class="context-block">
-        <p>Systeme de taches sporadiques independantes :</p>
+        <h4>Rappel de Cours : Optimalité de Deadline Monotonic (DM)</h4>
+        <p>L'algorithme <strong>Deadline Monotonic (DM)</strong> attribue les priorités de manière inversement proportionnelle à l'échéance relative ($D_i$). Plus l'échéance d'une tâche est courte, plus sa priorité est élevée. C'est le petit frère de Rate Monotonic (RM), conçu spécialement pour gérer les systèmes où les délais autorisés peuvent être plus stricts que la période de la tâche.</p>
+        
+        <p>DM est considéré comme <strong>optimal</strong> dans la famille des algorithmes à priorités fixes seulement si les 5 conditions suivantes sont réunies (Leung &amp; Whitehead, 1982) :</p>
+        <ul class="steps">
+            <li><strong>Tâches indépendantes et préemptibles</strong> : pas de ressources partagées (qui bloqueraient les exécutions croisées).</li>
+            <li><strong>Monoprocesseur</strong> : le système s'exécute sur 1 seul processeur.</li>
+            <li><strong>Instant critique existant</strong> : il est possible que toutes les tâches se réveillent et demandent le processeur en même temps (pire cas).</li>
+            <li><strong>Nature des tâches</strong> : elles doivent être périodiques ou sporadiques (en cas sporadique, on suppose qu'elles peuvent se réveiller au maximum de leur vitesse en même temps, ce qui valide d'office la condition précédente).</li>
+            <li><strong>Échéances contraintes</strong> : le délai de chaque tâche est inférieur ou égal à sa période ($D_i \le T_i$).</li>
+        </ul>
+        <div class="callout-info">
+            <strong>Analogie : RM est un cas spécifique de DM.</strong><br>
+            Si l'on impose pour toutes les tâches que le délai maximum admis soit strictement égal à la période ($D_i = T_i$, c'est-à-dire une "échéance sur requête"), <strong>DM devient exactement Rate Monotonic (RM)</strong> !
+        </div>
+        
+        <h4 style="margin-top: 1.5rem;">Rappel de Cours : La Densité</h4>
+        <p>Dans les systèmes où les délais diffèrent des périodes (notamment quand $D_i < T_i$), la charge classique $U_i = \frac{C_i}{T_i}$ ne représente plus fidèlement "l'urgence" ou la pression exercée par une tâche sur le processeur à court terme. On introduit alors la <strong>densité</strong> ($\Delta_i$).</p>
+        
+        <div class="highlight-box">
+            <p><span class="badge badge-blue">Méthode de calcul</span></p>
+            <p>La densité d'une tâche de manière générale se calcule selon l'équation : $\Delta_i = \frac{C_i}{\min(D_i, T_i)}$.<br> 
+               Dans notre cas d'échéances contraintes ($D_i \le T_i$), cela se simplifie toujours par : <strong>$\Delta_i = \frac{C_i}{D_i}$</strong></p>
+        </div>
+        
+        <p><strong>Pourquoi l'utiliser ?</strong></p>
+        <p>Pour étendre les tests suffisants classiques élaborés pour RM (comme le test additif de Liu &amp; Layland ou la borne hyperbolique) aux algorithmes à échéances contraintes comme DM, on remplace simplement la charge processeur par la densité dans les équations. Si $\sum \Delta_i$ vérifie les bornes, alors le système est garanti ordonnançable (c'est une approximation pessimiste mais sûre).</p>
+        
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color); opacity: 0.3;">
+        
+        <p><strong>Contexte de l'exercice - Systeme de taches sporadiques independantes :</strong></p>
         <div class="table-glass">
             <table>
                 <thead>
-                    <tr><th>Tache</th><th>WCET C_i</th><th>Delai D_i</th><th>Periode T_i</th></tr>
+                    <tr><th>Tache</th><th>WCET $C_i$</th><th>Delai $D_i$</th><th>Periode $T_i$</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><strong>tau1</strong></td><td>4</td><td>16</td><td>16</td></tr>
-                    <tr><td><strong>tau2</strong></td><td>3</td><td>7</td><td>8</td></tr>
-                    <tr><td><strong>tau3</strong></td><td>4</td><td>6</td><td>12</td></tr>
+                    <tr><td><strong>$\tau_1$</strong></td><td>4</td><td>16</td><td>16</td></tr>
+                    <tr><td><strong>$\tau_2$</strong></td><td>3</td><td>7</td><td>8</td></tr>
+                    <tr><td><strong>$\tau_3$</strong></td><td>4</td><td>6</td><td>12</td></tr>
                 </tbody>
             </table>
         </div>
@@ -290,7 +391,7 @@
         </div>
 
         <div class="sub-question"><strong>a)</strong> Quelle affectation de priorites fixes est optimale dans ce cadre ?</div>
-        <div class="sub-question"><strong>b)</strong> Appliquer L&amp;L et hyperbolique en considerant la densite <code>C_i / D_i</code>.</div>
+        <div class="sub-question"><strong>b)</strong> Appliquer L&amp;L et hyperbolique en considerant la densite $\frac{C_i}{D_i}$.</div>
         <div class="sub-question"><strong>c)</strong> Tracer une simulation avec cette affectation et conclure.</div>
         <div class="sub-question"><strong>d)</strong> Existe-t-il une affectation FTP qui ordonnance fiablement ce systeme ?</div>
 
@@ -305,8 +406,8 @@
             <span class="btn-label">Indice 1/2</span>
         </button>
         <div class="hint" id="q3-h1">
-            Les delais sont contraints (<code>D_i &lt;= T_i</code>) : DM classe par delai croissant
-            (<code>tau3</code>, <code>tau2</code>, <code>tau1</code>).
+            Les delais sont contraints ($D_i \le T_i$) : DM classe par delai croissant
+            ($\tau_3$, $\tau_2$, $\tau_1$).
         </div>
 
         <button class="hint-btn hint-locked" data-hint="q3-h2" data-label="Indice 2/2" aria-expanded="false">
@@ -314,7 +415,7 @@
             <span class="btn-label">Indice 2/2</span>
         </button>
         <div class="hint" id="q3-h2">
-            Densites : <code>4/16 = 0.25</code>, <code>3/7 = 0.4286</code>, <code>4/6 = 0.6667</code>.
+            Densites : $\frac{4}{16} = 0.25$, $\frac{3}{7} \approx 0.4286$, $\frac{4}{6} \approx 0.6667$.
             Vous devriez trouver un echec net des deux tests et une violation de delai en simulation.
         </div>
     </div>
@@ -333,16 +434,107 @@
             monoprocesseur, et <code>D_i &lt;= T_i</code>.</p>
 
             <p><strong>b) Tests avec densites :</strong></p>
-            <pre><code>lambda1 = 4/16 = 0.25
-lambda2 = 3/7  = 0.4286
-lambda3 = 4/6  = 0.6667</code></pre>
+            <p>
+            $$ \begin{aligned}
+            \lambda_1 &= \frac{4}{16} = 0.25 \\
+            \lambda_2 &= \frac{3}{7} \approx 0.4286 \\
+            \lambda_3 &= \frac{4}{6} \approx 0.6667
+            \end{aligned} $$
+            </p>
             <ul class="steps">
-                <li>L&amp;L : <code>0.25 + 0.4286 + 0.6667 = 1.3453 &gt; 0.7798</code> - echec.</li>
-                <li>Hyperbolique : <code>(1+0.25)(1+0.4286)(1+0.6667) = 2.9763 &gt; 2</code> - echec.</li>
+                <li><strong>L&amp;L</strong> : $0.25 + 0.4286 + 0.6667 = 1.3453 > 0.7798$ - echec.</li>
+                <li><strong>Hyperbolique</strong> : $(1+0.25)(1+0.4286)(1+0.6667) \approx 2.9763 > 2$ - echec.</li>
             </ul>
 
-            <p><strong>c) Simulation sous DM (tau3 &gt; tau2 &gt; tau1) :</strong>
-            la premiere instance de <code>tau1</code> ne termine pas avant son delai <code>t=16</code>, donc systeme non ordonnancable.</p>
+            <p><strong>c) Simulation sous DM ($\tau_3 > \tau_2 > \tau_1$) :</strong></p>
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0; width: 100%; overflow-x: auto;">
+                <svg width="650" height="150" viewBox="0 0 650 150" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px; flex-shrink: 0;">
+                    <!-- Grille de fond -->
+                    <line x1="50" y1="20" x2="50" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="130" y1="20" x2="130" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="190" y1="20" x2="190" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="210" y1="20" x2="210" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="270" y1="20" x2="270" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="290" y1="20" x2="290" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="370" y1="20" x2="370" y2="120" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    
+                    <!-- Axes -->
+                    <line x1="50" y1="120" x2="620" y2="120" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="120" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Ticks temps (1ms = 20px) => max 28ms affichés -->
+                    <text x="50" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="130" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">4</text>
+                    <text x="190" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">7</text>
+                    <text x="210" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">8</text>
+                    <text x="270" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">11</text>
+                    <text x="290" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">12</text>
+                    
+                    <!-- Échéance tau1 = 16 -->
+                    <text x="370" y="135" text-anchor="middle" font-size="10" fill="#d67556" font-weight="bold">16</text>
+                    <line x1="370" y1="20" x2="370" y2="120" stroke="#d67556" stroke-width="1.5" stroke-dasharray="4 2"/>
+                    <path d="M 370 20 L 366 28 L 374 28 Z" fill="#d67556"/>
+                    <text x="375" y="32" font-size="9" fill="#d67556">D1</text>
+                    
+                    <!-- Réveil tau 2 => t=16, tau 3 => t=24, tau1 => 16... -->
+                    <text x="530" y="135" text-anchor="middle" font-size="10" fill="#9e9a94">24</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="45" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+                    <text x="15" y="75" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="105" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+
+                    <!-- ÉCHÉANCES INTÉRIMAIRES ET RÉVEILS -->
+                    <!-- D3=6, T3=12 / D2=7, T2=8 -->
+                    <path d="M 170 20 L 166 28 L 174 28 Z" fill="#9e9a94"/> <text x="175" y="32" font-size="9" fill="#9e9a94">D3</text> <!-- t=6 -->
+                    <path d="M 190 50 L 186 58 L 194 58 Z" fill="#5ba6a0"/> <text x="195" y="62" font-size="9" fill="#5ba6a0">D2</text> <!-- t=7 -->
+                    
+                    <line x1="210" y1="50" x2="210" y2="120" stroke="#5ba6a0" stroke-width="1" stroke-dasharray="2 2"/> <text x="215" y="115" font-size="9" fill="#5ba6a0">r2</text> <!-- t=8 -->
+                    <line x1="290" y1="20" x2="290" y2="120" stroke="#9e9a94" stroke-width="1" stroke-dasharray="2 2"/> <text x="295" y="115" font-size="9" fill="#9e9a94">r3</text> <!-- t=12 -->
+                    <path d="M 350 50 L 346 58 L 354 58 Z" fill="#5ba6a0"/> <text x="355" y="62" font-size="9" fill="#5ba6a0">D2</text> <!-- t=15 -->
+                    <line x1="370" y1="50" x2="370" y2="120" stroke="#5ba6a0" stroke-width="1" stroke-dasharray="2 2"/> <text x="375" y="115" font-size="9" fill="#5ba6a0">r2</text> <!-- t=16 -->
+
+                    <!-- Exécutions -->
+                    <!-- τ3 : C=4 (t=0..4) -->
+                    <rect x="50" y="33" width="80" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="90" y="46" text-anchor="middle" font-size="9" fill="#f5f3f0">C3=4</text>
+                    
+                    <!-- τ2 : C=3 (t=4..7) -->
+                    <rect x="130" y="63" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="160" y="76" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=3</text>
+                    
+                    <!-- τ1 : C=4 (t=7..8) [1/4] -->
+                    <rect x="190" y="93" width="20" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    
+                    <!-- τ2 réveil t=8 : C=3 (t=8..11) -->
+                    <rect x="210" y="63" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="240" y="76" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=3</text>
+                    
+                    <!-- τ1 : reprise t=11..12 [2/4] -->
+                    <rect x="270" y="93" width="20" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    
+                    <!-- τ3 réveil t=12 : C=4 (t=12..16) -->
+                    <rect x="290" y="33" width="80" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="330" y="46" text-anchor="middle" font-size="9" fill="#f5f3f0">C3=4</text>
+
+                    <!-- t=16 : Échéance D1 violée - Simulation de ce qui se passerait ensuite... -->
+                    <!-- τ2 réveil t=16 : C=3 (t=16..19) -->
+                    <rect x="370" y="63" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="400" y="76" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=3</text>
+
+                    <!-- τ1 : (t=19..21) [3/4 -> 4/4] (En retard) -->
+                    <rect x="430" y="93" width="40" height="18" rx="3" fill="rgba(214,117,86,0.2)" stroke="#d67556" stroke-width="1.5" stroke-dasharray="2 2"/>
+                    <text x="450" y="106" text-anchor="middle" font-size="9" fill="#d67556">En retard</text>
+                </svg>
+            </div>
+            <ul>
+                <li><strong>t = 0 :</strong> $\tau_3$, $\tau_2$, $\tau_1$ activées. $\tau_3$ (priorité 1) a le CPU jusqu'à <strong>t=4</strong>.</li>
+                <li><strong>t = 4 :</strong> $\tau_2$ a le CPU et termine à <strong>t=7</strong>.</li>
+                <li><strong>t = 7 :</strong> $\tau_1$ obtient enfin le CPU, exécute 1 unité et est préemptée à <strong>t=8</strong> par le deuxième réveil de $\tau_2$.</li>
+                <li><strong>t = 8 :</strong> $\tau_2$ réclame le CPU jusqu'à <strong>t=11</strong> ($8+3=11$).</li>
+                <li><strong>t = 11 :</strong> $\tau_1$ reprend, exécute 1 unité. À <strong>t=12</strong>, $\tau_3$ se réveille ($T_3=12$) et la préempte !</li>
+                <li><strong>t = 12 :</strong> L'instance 2 de $\tau_3$ accapare le CPU pour 4 unités, s'achevant au pire moment, à <strong>t=16</strong>.</li>
+            </ul>
+            <p>La premiere instance de $\tau_1$ ne termine pas avant son delai $t=16$ (il lui manquait encore 2 unités de C). Or à l'instant t=16, $\tau_2$ (et même l'instance 2 de $\tau_1$) se réveillent de nouveau et relancent leurs exécutions. On observe à $t > 16$ que $\tau_1$ va s'exécuter en retard. Ainsi, <strong>le systeme est non ordonnancable</strong>.</p>
 
             <p><strong>d) Existence d'une affectation FTP fiable :</strong> non. DM etant optimale dans ce contexte,
             son echec implique qu'aucune autre affectation de priorites fixes aux taches ne peut ordonnancer fiablement ce systeme.</p>
@@ -352,18 +544,38 @@ lambda3 = 4/6  = 0.6667</code></pre>
     <h3>Exercice 4 - OPA (Audsley) et complexite</h3>
 
     <div class="context-block">
-        <p>
-            Quand RM/DM perdent leur optimalite (ex. offsets, contraintes supplementaires, <code>D_i &gt; T_i</code>),
-            on peut chercher une affectation de priorites via <strong>OPA</strong>, a condition que le test
-            de faisabilite respecte les conditions de monotonicite utilisees par Audsley.
-        </p>
-
         <div class="highlight-box">
-            <p><span class="badge badge-orange">Methode OPA en une phrase</span></p>
+            <p><span class="badge badge-vert">Rappel de cours : Conditions d'Audsley (OPA)</span></p>
+            <p>Quand RM/DM perdent leur optimalite (ex. offsets, contraintes supplementaires, $D_i > T_i$), on peut chercher une affectation de priorites via l'algorithme d'Audsley (<strong>Optimal Priority Assignment - OPA</strong>). L'utilisation de cette méthode nécessite que le test d'ordonnançabilité employé satisfasse ces <strong>3 conditions de monotonicité</strong> :</p>
+            <ul>
+                <li><strong>Condition 1 :</strong> l’ordonnançabilité d’une tâche dépend des tâches plus prioritaires (individuellement), mais <strong>pas de leur ordre</strong> de priorités entre elles.</li>
+                <li><strong>Condition 2 :</strong> l’ordonnançabilité d’une tâche dépend des tâches moins prioritaires (individuellement), mais <strong>pas de leur ordre</strong> de priorités entre elles.</li>
+                <li><strong>Condition 3 :</strong> si une tâche respecte ses échéances avec un niveau de priorité $i$, elle ne peut pas ne pas les respecter avec un niveau de priorité $i+1$ (une priorité <em>plus élevée</em>).</li>
+            </ul>
+        </div>
+        
+        <div class="highlight-box">
+            <p><span class="badge badge-orange">Methode OPA en pratique</span></p>
             <p>
-                On affecte d'abord la <em>plus basse priorite</em> a une tache qui reste faisable a ce niveau,
-                on la retire, puis on recommence jusqu'a epuisement des taches ou blocage.
+                L'algorithme d'Audsley permet de trouver les priorités "bottom-up". On affecte d'abord la <em>plus basse priorite</em> a une tache qui reste faisable a ce niveau, on la retire, puis on recommence avec le niveau de priorité supérieur jusqu'a epuisement des taches ou blocage (système non ordonnançable).
             </p>
+            <pre><code class="language-text">T = liste des tâches (triée par exemple par ordre croissant DM)
+Pour priorité P = 1 à n :
+    τ = tete(T)
+    Prio_affectée = faux
+    Répéter :
+        Si τ ne respecte pas ses échéances avec priorité P :
+            Si τ = last(T)  // On a épuisé toute la liste à ce niveau
+                Renvoyer "Non ordonnançable"
+            Sinon :
+                τ = next(T) // Tester la tâche suivante
+        Sinon :
+            Prio_affectée = vrai
+            Assigner priorité P à τ
+            remove(T, τ)
+    Jusqu’à Prio_affectée = vrai
+Fait
+Renvoyer "Ordonnançable"</code></pre>
         </div>
     </div>
 
@@ -374,8 +586,26 @@ lambda3 = 4/6  = 0.6667</code></pre>
             <span class="diff-badge diff-avance">Avance</span>
         </div>
 
-        <div class="sub-question"><strong>a)</strong> Quelle est la complexite d'OPA si le test de faisabilite d'une tache est en <code>O(1)</code> ?</div>
+        <div class="sub-question"><strong>a)</strong> Quelle est la complexite d'OPA si le test de faisabilite d'une tache est en $\mathcal{O}(1)$ ?</div>
         <div class="sub-question"><strong>b)</strong> Pour 25 taches, combien de tests de faisabilite au maximum ?</div>
+        
+        <div class="context-block">
+            <div class="highlight-box">
+                <p><span class="badge badge-info">Validation d'une tâche par simulation dans OPA</span></p>
+                <p>
+                    Une façon de tester si une tâche respecte ses échéances, indépendamment des autres priorités encore non assignées, consiste à <strong>simuler</strong> le système (si on se trouve dans un contexte où la simulation est un test de faisabilité exact et viable) en affectant :
+                </p>
+                <ul>
+                    <li>La priorité $P$ à la tâche testée $\tau$</li>
+                    <li>La priorité $P+1$ (moins prioritaire, donc sans impact sur $\tau$) à toutes les autres tâches encore présentes dans $T$</li>
+                    <li>La priorité <em>déjà choisie</em> (plus élevée) pour les tâches affectées précédemment</li>
+                </ul>
+                <p>
+                    On ne regarde alors <strong>que pour la tâche $\tau$ considérée</strong> si les échéances sont respectées. On ne se soucie pas de savoir si les échéances des tâches plus ou moins prioritaires le sont lors de cette étape spécifique.
+                </p>
+            </div>
+        </div>
+
         <div class="sub-question"><strong>c)</strong> Si le test choisi est la simulation et que les taches sont non preemptibles, OPA est-il applicable comme preuve ?</div>
         <div class="sub-question"><strong>d)</strong> Pour le systeme ci-dessous, DM est-il optimal ? OPA est-il applicable avec simulation ? Le systeme est-il ordonnancable en FTP ?</div>
 
@@ -449,33 +679,17 @@ lambda3 = 4/6  = 0.6667</code></pre>
     </div>
 
     <div class="bareme">
-        <div class="bareme-col">
-            <h4>Q1 - 6 pts</h4>
-            <ul>
-                <li>Calcul de U exact (2 pts)</li>
-                <li>Conditions d'optimalite RM (1 pt)</li>
-                <li>Tests L&amp;L/hyper correctement interpretes (2 pts)</li>
-                <li>Conclusion sur la nature "suffisante" (1 pt)</li>
-            </ul>
-        </div>
-        <div class="bareme-col">
-            <h4>Q2 - 5 pts</h4>
-            <ul>
-                <li>Charge correcte (1 pt)</li>
-                <li>Discussion RM et offsets (1 pt)</li>
-                <li>Application L&amp;L (1 pt)</li>
-                <li>Application hyperbolique (1 pt)</li>
-                <li>Conclusion nuancee (1 pt)</li>
-            </ul>
-        </div>
-        <div class="bareme-col">
-            <h4>Q3 + Q4 - 13 pts</h4>
-            <ul>
-                <li>DM/densites/simulation et conclusion FTP (7 pts)</li>
-                <li>Complexite OPA et cas n=25 (3 pts)</li>
-                <li>Validite OPA + simulation selon le contexte (3 pts)</li>
-            </ul>
-        </div>
+        <span class="bareme-pts">6</span>
+        <span class="bareme-label">Q1 — Ordonnancement RM</span>
+        <span class="bareme-desc">U exact (2) · Conditions RM (1) · Tests L&amp;L/hyper (2) · Conclusion (1)</span>
+        
+        <span class="bareme-pts">5</span>
+        <span class="bareme-label">Q2 — Étude de la charge factorisée</span>
+        <span class="bareme-desc">Charge (1) · RM et offsets (1) · Tests L&amp;L et hyper (2) · Conclusion (1)</span>
+        
+        <span class="bareme-pts">13</span>
+        <span class="bareme-label">Q3 et Q4 — DM et OPA</span>
+        <span class="bareme-desc">DM/densités/simulation (7) · Complexité OPA (3) · Simulation OPA (3)</span>
     </div>
 
     <div class="pour-aller-plus-loin">

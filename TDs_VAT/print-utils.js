@@ -57,31 +57,26 @@ function cleanSectionForPrint(doc, f) {
     if (!body) return '';
     const clone = body.cloneNode(true);
 
-    // 1. Traiter les hint-btn / hint : distinguer rappels vs indices
+    // 1. Traiter les hint-btn / hint : afficher rappels, définitions, bilans et indices
     clone.querySelectorAll('.hint-btn').forEach(btn => {
         const label   = (btn.getAttribute('data-label') || '').toLowerCase();
         const hintId  = btn.getAttribute('data-hint');
         const hintEl  = hintId ? clone.querySelector('#' + CSS.escape(hintId)) : null;
 
-        if (label.includes('rappel')) {
-            // C'est un rappel de cours → garder le contenu si filtre actif
-            if (f.rappel === false) {
-                if (hintEl) hintEl.remove();
-            } else if (hintEl) {
+        if (hintEl) {
+            if (label.includes('rappel') && f.rappel === false) {
+                hintEl.remove();
+            } else {
                 // Rendre visible et ajouter un titre
                 hintEl.style.display = 'block';
                 hintEl.classList.add('rappel-print');
                 const titleEl = document.createElement('p');
                 titleEl.className = 'rappel-print-title';
-                titleEl.innerHTML = '<strong>' + escHtml(btn.getAttribute('data-label') || 'Rappel de cours') + '</strong>';
+                titleEl.innerHTML = '<strong>' + escHtml(btn.getAttribute('data-label') || 'Indice') + '</strong>';
                 hintEl.insertBefore(titleEl, hintEl.firstChild);
             }
-            btn.remove();
-        } else {
-            // C'est un indice classique → toujours supprimer
-            if (hintEl) hintEl.remove();
-            btn.remove();
         }
+        btn.remove();
     });
 
     // 2. Supprimer les éléments interactifs (toujours)
@@ -89,7 +84,7 @@ function cleanSectionForPrint(doc, f) {
         'script', '.reponse-zone', '.hint-locked',
         '.solution-btn', '.diff-badge', '.question-pts',
         '.exo-prereq', '.pour-aller-plus-loin', '.bareme',
-        '.terminal-lights', 'svg'
+        '.terminal-lights'
     ].join(',')).forEach(n => n.remove());
 
     // Supprimer les .hint restants (indices non traités)
@@ -216,6 +211,12 @@ function buildPrintHTML(allSections, title, subtitle, colorMode = 'neutre') {
 <head>
 <meta charset="UTF-8">
 <title>${escHtml(title)} — Fiche récap</title>
+
+<!-- KaTeX pour le rendu des mathématiques -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.css" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/contrib/auto-render.min.js" crossorigin="anonymous" onload="renderMathInElement(document.body, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false });"></script>
+
 <style>
 /* ── Page A4 portrait ────────────────────────────────────────── */
 @page {

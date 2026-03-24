@@ -70,6 +70,34 @@
                 <p>Un système est ordonnançable par simulation si et seulement si la simulation représente le <strong>pire cas</strong> du système dans un contexte viable.</p>
             </div>
         </div>
+
+        <button class="hint-btn" data-hint="rappel-ordonnanceurs" data-label="Bilan des politiques d'ordonnancement" data-close-label="Masquer le bilan" aria-expanded="false" style="margin-top: 1rem;">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Bilan des politiques d'ordonnancement</span>
+        </button>
+        <div class="hint" id="rappel-ordonnanceurs">
+            <p><strong>Petit lexique des ordonnanceurs temps réel :</strong></p>
+            <div class="compare-grid" style="margin-top: 1rem;">
+                <div class="compare-item neutral" data-label="Rate Monotonic (RM)">
+                    <p><strong>Rate Monotonic (RM)</strong><br><em>Priorité statique (fixe)</em></p>
+                    <p>Règle : Plus la <strong>période ($T_i$)</strong> est courte, plus la tâche est prioritaire.</p>
+                    <p><em>Analogie :</em> On sert en priorité le client qui revient le plus souvent.</p>
+                    <p><em>Optimalité :</em> Optimal pour des tâches indépendantes à priorités fixes où $D_i = T_i$.</p>
+                </div>
+                <div class="compare-item neutral" data-label="Deadline Monotonic (DM)">
+                    <p><strong>Deadline Monotonic (DM)</strong><br><em>Priorité statique (fixe)</em></p>
+                    <p>Règle : Plus le <strong>délai critique ($D_i$)</strong> est court, plus la tâche est prioritaire.</p>
+                    <p><em>Analogie :</em> Aux urgences, on traite ceux pour qui le temps de survie "en théorie" est le plus court.</p>
+                    <p><em>Optimalité :</em> Optimal pour des tâches indépendantes à priorités fixes où $D_i \le T_i$.</p>
+                </div>
+                <div class="compare-item neutral" data-label="Earliest Deadline First (EDF)">
+                    <p><strong>Earliest Deadline First (EDF)</strong><br><em>Priorité dynamique</em></p>
+                    <p>Règle : La tâche dont l'<strong>échéance absolue ($d = t + D_i$)</strong> la plus proche est en cours prend le CPU.</p>
+                    <p><em>Analogie :</em> Faire ses devoirs strictement par date de rendu. Demain vient avant après-demain.</p>
+                    <p><em>Optimalité :</em> Optimal sur processeur unique, le système tourne jusqu'à 100% d'utilisation ($U \le 1$).</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
@@ -99,6 +127,11 @@
             </table>
         </div>
         <p class="inline-note">Note : Ici, la priorité 1 est la plus élevée.</p>
+        
+        <div class="callout-info" style="margin-top: 1rem;">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition de la charge U :</strong> C'est comme le volume d'une valise. L'utilisation (U) calcule le volume total des vêtements par rapport à la taille de la valise. Si $U \leq 1$, la valise est techniquement assez grande. Mais cela ne garantit pas que le couvercle fermera si on les empile dans n'importe quel ordre (sans respecter l'ordonnancement) !</p>
+        </div>
     </div>
 
     <div class="question">
@@ -129,6 +162,11 @@
         <div class="solution-inner">
             <p>$U = \frac{8}{30} + \frac{6}{20} + \frac{4}{15} = \frac{16+18+16}{60} = \frac{50}{60} \approx 0,833$</p>
             <p>$U \leq 1$, donc le système <em>pourrait</em> être ordonnançable. C'est une condition nécessaire mais pas suffisante.</p>
+            
+            <div class="highlight-box" style="margin-top: 1rem;">
+                <p><span class="badge badge-orange">Repère</span></p>
+                <p>Même avec un gros reste de temps CPU global (ici ~17% d'inactivité), une tâche très prioritaire peut s'exécuter au mauvais moment et faire rater l'échéance d'une tâche moins prioritaire. Autrement dit, la quantité totale est bonne, mais pas forcément la répartition instantanée.</p>
+            </div>
         </div>
     </div>
 
@@ -165,22 +203,221 @@
     </button>
     <div class="solution">
         <div class="solution-inner">
-            <p><strong>Trace (0 à 30ms) :</strong></p>
-            <ul>
-                <li>[0-8] : $\tau_1$ s'exécute (finit à 8). Temps de réponse $R_1=8$.</li>
-                <li>[8-14] : $\tau_2$ s'exécute (finit à 14). Temps de réponse $R_2=14$.</li>
-                <li>[14-15] : $\tau_3$ commence.</li>
-                <li>À $t=15$ : $\tau_3$ est réactivée. Mais l'instance précédente n'est pas finie !</li>
-                <li>[15-18] : $\tau_3$ continue (finit à 18). Temps de réponse de la 1ère instance $R_3=18$. <strong>Échec !</strong> $R_3 > D_3$ (18 > 15).</li>
+            <p><strong>Étapes de la simulation :</strong></p>
+            <ul class="steps">
+                <li><strong>t = 0 :</strong> Les 3 tâches sont réveillées. $\tau_1$ (priorité 1, max) prend le processeur.</li>
+                <li><strong>t = 8 :</strong> $\tau_1$ a terminé ses 8 unités. $\tau_2$ (priorité 2) s'exécute ensuite.</li>
+                <li><strong>t = 14 :</strong> $\tau_2$ a terminé (8 + 6 = 14). $\tau_3$ (priorité 3) commence enfin son exécution.</li>
+                <li><strong>t = 15 :</strong> Une nouvelle instance de $\tau_3$ se "réveille", mais la première n'a même pas fini ! L'échéance de la première est ratée.</li>
             </ul>
-            <p>Le système n'est pas ordonnançable avec ces priorités.</p>
+
+            <p><strong>Diagramme d'ordonnancement (0-30ms) :</strong></p>
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <!-- Grille de fond -->
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="200" y1="20" x2="200" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="350" y1="20" x2="350" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    <line x1="500" y1="20" x2="500" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+
+                    <!-- Axes -->
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks temps (1ms = 15px) -->
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="170" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">8</text>
+                    <text x="260" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">14</text>
+                    <text x="275" y="125" text-anchor="middle" font-size="10" fill="#d67556" font-weight="bold">15</text>
+                    <text x="320" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">18</text>
+                    <text x="500" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">30</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- Exécutions -->
+                    <!-- τ1 : [0-8] -->
+                    <rect x="50" y="28" width="120" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <text x="110" y="41" text-anchor="middle" font-size="9" fill="#f5f3f0">C1=8</text>
+
+                    <!-- τ2 : [8-14] -->
+                    <rect x="170" y="53" width="90" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="215" y="66" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=6</text>
+
+                    <!-- τ3 : [14-18] -->
+                    <rect x="260" y="78" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="290" y="91" text-anchor="middle" font-size="9" fill="#f5f3f0">C3=4</text>
+
+                    <!-- Échéances et Réveils -->
+                    <line x1="275" y1="20" x2="275" y2="110" stroke="#d67556" stroke-width="1.5" stroke-dasharray="4 2"/>
+                    <path d="M 275 20 L 271 28 L 279 28 Z" fill="#d67556"/>
+                    <text x="280" y="32" font-size="9" fill="#d67556">D3 / r3(2)</text>
+                </svg>
+            </div>
+
+            <p><strong>Analyse des temps de réponse :</strong></p>
+            <ul>
+                <li>$\tau_1$ : Fin à $t=8$, $R_1 = 8 - 0 = 8$ ($R_1 \leq 30$, OK).</li>
+                <li>$\tau_2$ : Fin à $t=14$, $R_2 = 14 - 0 = 14$ ($R_2 \leq 20$, OK).</li>
+                <li>$\tau_3$ : La première instance finit à $t=18$. Or son échéance était à $D_3=15$.</li>
+                <li><strong>Échec :</strong> $R_3 = 18 > 15$. Le système n'est pas ordonnançable.</li>
+            </ul>
         </div>
     </div>
 
-    <div class="highlight-box">
-        <p><span class="badge badge-green">Analyse de viabilité</span></p>
-        <p>Lorsque les tâches sont indépendantes, préemptibles, et ordonnancées sur un processeur unique, la simulation est <strong>C-viable</strong> et <strong>T-viable</strong>.</p>
-        <p>Si le système est non concret (dates de réveil inconnues), la simulation avec réveils simultanés est <strong>r-viable</strong> (car elle représente l'instant critique).</p>
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q3</span>
+            <span class="question-pts">3 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p><strong>d)</strong> Le système est-il ordonnançable par l'algorithme "Rate Monotonic" (RM) ?<br>
+        <strong>e)</strong> Avec les priorités initiales du tableau ($\Pi_1=1, \Pi_2=2, \Pi_3=3$), en supposant que les dates de réveil soient inconnues (système non concret), le système est-il ordonnançable ?</p>
+
+        <button class="hint-btn" data-hint="q3-h1" data-label="Indice RM & Instant critique" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice RM & Instant critique</span>
+        </button>
+        <div class="hint" id="q3-h1">
+            <p><strong>Pour RM :</strong> RM attribue la priorité la plus haute à la tâche avec la plus petite période. L'ordre des priorités sera donc strictement inversé par rapport à l'énoncé !</p>
+            <p><strong>Pour le système non concret :</strong> S'il a échoué dans le pire des cas (l'instant critique tracé à la Q2), peut-il garantir ses échéances dans n'importe quel autre cas ?</p>
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Analyse RM et système non concret..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>d) Ordonnançabilité par Rate Monotonic (RM) :</strong></p>
+            <p>Oui ! L'algorithme Rate Monotonic assigne les priorités en fonction des périodes (la plus courte période a la priorité la plus haute). Les priorités deviennent donc : $\Pi_3$ (max), $\Pi_2$ (moyenne), $\Pi_1$ (basse). Avec ce nouvel ordre, les pires temps de réponse de calculent via RTA donnent $R_1 = 28 \leq 30$, $\tau_2$ finit à 10, et $\tau_3$ à 4. Le système est ordonnançable.</p>
+
+            <p><strong>e) Système non concret avec les priorités fixées arbitrairement :</strong></p>
+            <p>Non. Un système non concret est garanti ordonnançable si et seulement s'il est ordonnançable dans son cas le pire, c'est-à-dire l'instant critique où toutes les tâches démarrent en même temps. La simulation de Q2 représentait exactement cet instant critique ($r_i=0$ pour tous). Puisque $\tau_3$ y ratait son échéance, le système général n'est pas ordonnançable.</p>
+
+            <div class="highlight-box" style="margin-top: 1rem;">
+                <p><span class="badge badge-green">Analyse de viabilité</span></p>
+                <p>Lorsque les tâches sont indépendantes, préemptibles, et ordonnancées sur un processeur unique, la simulation est <strong>C-viable</strong> et <strong>T-viable</strong>.</p>
+                <p>Si le système est non concret, la simulation avec réveils simultanés est <strong>r-viable</strong> (car elle représente ce fameux instant critique qui engendre le pire temps de réponse potentiel pour diagnostiquer l'ordonnançabilité globale).</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">Q4</span>
+            <span class="question-pts">5 pts</span>
+            <span class="diff-badge diff-moyen">Intermédiaire</span>
+        </div>
+        <p><strong>f)</strong> Tracer la simulation de l'ordonnancement en supposant cette fois un ordonnanceur <strong>EDF (Earliest Deadline First)</strong>.<br>
+        <strong>g)</strong> Quel est le pire temps de réponse de chaque tâche ?<br>
+        <strong>h)</strong> Le système est-il ordonnançable par EDF ?</p>
+
+        <div class="erreur-freq">
+            <strong>Piège courant :</strong> Sous EDF, la priorité d'une tâche <strong>change dynamiquement</strong> ! À chaque instant de réveil, il faut recalculer la date de mort absolue (échéance $d = t + D_i$) de toutes les tâches actives et exécuter celle qui a la plus petite.
+        </div>
+        
+        <button class="hint-btn" data-hint="q4-h1" data-label="Indices Simulation EDF" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indices Simulation EDF</span>
+        </button>
+        <div class="hint" id="q4-h1">
+            À $t=0$, les échéances absolues sont $d_1=30, d_2=20, d_3=15$. Donc $\tau_3$ passe en premier. À $t=20$, $\tau_2$ se réveille : son échéance est $20+20=40$. Mais $\tau_1$, qui n'a peut-être pas fini, a toujours son échéance à 30 ! C'est donc très différent des priorités fixes où $\tau_2$ couperait toujours la parole à $\tau_1$.
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Simulation EDF et analyse..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>f) Chronologie avec Earliest Deadline First :</strong></p>
+            <ul class="steps">
+                <li><strong>t = 0 :</strong> Échéances absolues ($D_i$) : $\tau_1(30)$, $\tau_2(20)$, $\tau_3(15)$. $\tau_3$ est prioritaire et s'exécute.</li>
+                <li><strong>t = 4 :</strong> $\tau_3$ finit. $\tau_2$ (d=20) prend le relais en priorité sur $\tau_1$ (d=30).</li>
+                <li><strong>t = 10 :</strong> $\tau_2$ finit. $\tau_1$ (d=30) s'exécute.</li>
+                <li><strong>t = 15 :</strong> $\tau_3$ est réveillée : nouvelle d=30. Échéances des actives : $\tau_1(30)$ et $\tau_3(30)$. (Égalité : admettons que $\tau_3$ prenne la main).</li>
+                <li><strong>t = 19 :</strong> $\tau_3$ finit. $\tau_1$ (toujours d=30) reprend.</li>
+                <li><strong>t = 20 :</strong> $\tau_2$ est réveillée. Sa nouvelle échéance absolue est $d_2 = 20+20=40$. <strong>Attention :</strong> $\tau_1$ a son échéance à 30 ! Donc sous EDF, $\tau_1$ (d=30) conserve farouchement le processeur face à $\tau_2$ (d=40).</li>
+                <li><strong>t = 22 :</strong> $\tau_1$ termine ses 2 ultimes unités. $\tau_2$ peut enfin s'exécuter.</li>
+                <li><strong>t = 28 :</strong> $\tau_2$ termine son exécution. CPU inactif jusqu'à 30.</li>
+            </ul>
+              <p><strong>Diagramme d'ordonnancement (EDF) :</strong></p>
+              <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                      <!-- Grille de fond -->
+                      <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                      <line x1="200" y1="20" x2="200" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                      <line x1="275" y1="20" x2="275" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                      <line x1="350" y1="20" x2="350" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                      <line x1="500" y1="20" x2="500" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+
+                      <!-- Axes -->
+                      <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                      <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                      <!-- Ticks temps (1ms = 15px) -->
+                      <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                      <text x="110" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">4</text>
+                      <text x="200" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">10</text>
+                      <text x="275" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">15</text>
+                      <text x="335" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">19</text>
+                      <text x="350" y="125" text-anchor="middle" font-size="10" fill="#5ba6a0" font-weight="bold">20</text>
+                      <text x="380" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">22</text>
+                      <text x="470" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">28</text>
+                      <text x="500" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">30</text>
+
+                      <!-- Labels tâches -->
+                      <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                      <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                      <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                      <!-- Exécutions -->
+                      <!-- τ3 : [0-4] et [15-19] -->
+                      <rect x="50" y="78" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                      <rect x="275" y="78" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+
+                      <!-- τ2 : [4-10] et [22-28] -->
+                      <rect x="110" y="53" width="90" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                      <rect x="380" y="53" width="90" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+
+                      <!-- τ1 : [10-15] et [19-22] -->
+                      <rect x="200" y="28" width="75" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                      <rect x="335" y="28" width="45" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+
+                      <!-- Activations (flèches vers le haut pour les réveils) -->
+                      <path d="M 275 110 L 275 80" stroke="#9e9a94" stroke-width="1" stroke-dasharray="2 2"/>
+                      <text x="275" y="15" text-anchor="middle" font-size="8" fill="#9e9a94">r3=15</text>
+
+                      <path d="M 350 110 L 350 55" stroke="#5ba6a0" stroke-width="1" stroke-dasharray="2 2"/>
+                      <text x="350" y="15" text-anchor="middle" font-size="8" fill="#5ba6a0">r2=20</text>
+                  </svg>
+              </div>
+            <p style="margin-top: 1.5rem;"><strong>g) Pires temps de réponse :</strong></p>
+            <div class="table-glass">
+                <table>
+                    <thead>
+                        <tr><th>Tâche</th><th>Temps de réponse observé pour le moment</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>$\tau_1$</td><td>Finit à 22 → $R_1 = 22$</td></tr>
+                        <tr><td>$\tau_2$</td><td>Finit à 10 pour l'inst.1 ($r=10$), et à 28 ($r=8$) pour l'inst.2 → Pire $R_2 = 10$</td></tr>
+                        <tr><td>$\tau_3$</td><td>Finit à 4 pour l'inst.1 ($r=4$), et à 19 ($r=4$) pour l'inst.2 → Pire $R_3 = 4$</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="margin-top: 1.5rem;"><strong>h) Conclusion sur l'ordonnançabilité :</strong></p>
+            <p><strong>Oui, le système est ordonnançable par EDF.</strong> À la question 1, nous avions calculé $U = 0,833 \leq 1$. Pour un algorithme dynamique comme EDF sur monoprocesseur (avec $D_i = T_i$), cette condition d'utilisation $U \leq 1$ est nécessaire ET <strong>suffisante</strong>. Les temps de réponse simulés confirment qu'il n'y a aucun dépassement mortel.</p>
+        </div>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
@@ -201,30 +438,200 @@
                 </tbody>
             </table>
         </div>
+        
+        <div class="callout-info" style="margin-top: 1rem;">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>L'Offset ($r_i$) :</strong> C'est comme décaler sciemment le départ d'une course pour éviter un embouteillage au premier virage. La tâche $\tau_1$ ne démarrera qu'à $t=8$ pour la première fois. Ce décalage permet à ceux qui ont de petites échéances ($\tau_3$) de prendre de l'avance.</p>
+        </div>
     </div>
 
     <div class="question">
         <div class="question-header">
-            <span class="question-num">Q3</span>
-            <span class="question-pts">4 pts</span>
-            <span class="diff-badge diff-moyen">Intermédiaire</span>
-        </div>
-        <p>Tracer la simulation. Quelle est la durée de la fenêtre d'observation nécessaire pour conclure sur l'ordonnançabilité ?</p>
-        
-        <div class="erreur-freq">
+            <span class="question-num">Q5</span>
+              <span class="question-pts">8 pts</span>
+              <span class="diff-badge diff-moyen">Intermédiaire</span>
+          </div>
+          <p><strong>a)</strong> Calculer l’utilisation processeur (aussi appelée charge processeur) $U$ du système, et conclure.</p>
+          <p><strong>b)</strong> Tracer la simulation de l’ordonnancement du système, puis vérifier que la séquence produite est la même que celle produite par SimSo Web.</p>
+          <p><strong>c)</strong> Tracer la simulation en supposant que les tâches sont simultanées, et conclure.<br>
+             <span class="inline-note"><em>(Rappel : Pour une tâche de priorité $\Pi_i$, le cas le plus défavorable survient lorsqu’elle subit la pire interférence de toutes les tâches de priorité plus élevée. L’instant critique d’une tâche survient lorsqu’elle est activée simultanément avec toutes les tâches plus prioritaires, car cela maximise l’interférence de celles-ci.)</em></span>
+          </p>
+          <p><strong>d)</strong> En supposant les dates de réveil données dans la table, mais à supposer cette fois que les tâches sont sporadiques, que conclure ?</p>
             <strong>Piège courant :</strong> Ne pas tenir compte des offsets dans le calcul du cycle d'ordonnancement. Le cycle ne commence pas forcément à $t=0$.
         </div>
 
-        <button class="hint-btn" data-hint="q3-h1" data-label="Rappel sur l'hyperpériode" aria-expanded="false">
+        <button class="hint-btn" data-hint="q5-h1" data-label="Rappel sur l'hyperpériode" aria-expanded="false">
             <span class="btn-arrow">▶</span>
             <span class="btn-label">Rappel sur l'hyperpériode</span>
         </button>
-        <div class="hint" id="q3-h1">
-            Si $D_i \leq T_i$, la fenêtre est de taille $H = PPCM(T_i)$ après l'instant où toutes les tâches ont été activées au moins une fois. Ici $H = PPCM(30, 20, 15) = 60$. La fenêtre d'étude est $[0, \max(r_i) + 2H]$.
+        <div class="hint" id="q5-h1">
+            <p>Si $D_i \leq T_i$, la fenêtre est de taille $H = PPCM(T_i)$ après l'instant où toutes les tâches ont été activées au moins une fois. Ici $H = PPCM(30, 20, 15) = 60$. La fenêtre d'étude est $[0, \max(r_i) + 2H]$.</p>
+            
+            <div class="highlight-box" style="margin-top: 1rem;">
+                <p><span class="badge badge-green">L'Hyperpériode expliquée</span></p>
+                <p>Imaginez 3 roues d'engrenage de tailles différentes (15 dents, 20 dents, 30 dents) qui tournent. Le plus petit commun multiple (PPCM), c'est le moment exact où toutes les manivelles de départ s'alignent à nouveau comme au premier jour (ici après 60 dents). La "séquence" d'ordonnancement se répétera à l'identique à partir de là !</p>
+            </div>
+
+              <div class="highlight-box" style="margin-top: 1rem; border-left-color: #5ba6a0; background: rgba(91, 166, 160, 0.05);">
+                  <p><span class="badge badge-blue">Point Cours : Le Cycle Permanent</span></p>
+                  <p><strong>"La première fenêtre de taille $H$ contenant exactement $H(1-U)$ temps creux..."</strong></p>
+                  <p>Avec des dates de démarrage ($r_i$) différentes, le système subit d'abord un démarrage un peu chaotique (le <em>"régime transitoire"</em>). Comment savoir si ce chaos est fini et qu'on a enfin atteint un rythme de croisière qui se répètera à l'infini ?</p>
+                  <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                      <li>$U$ est la charge processeur (ex: $0.8$ pour 80%).</li>
+                      <li>$1-U$ est le temps inactif obligatoire (ex: $0.2$).</li>
+                      <li>$H(1-U)$ est le "budget de repos" mathématique du processeur sur la durée d'une hyperpériode $H$.</li>
+                  </ul>
+                  <p>Dès qu'une fenêtre d'observation chronologique de durée $H$ contient un temps de repos <strong>parfaitement égal</strong> à $H(1-U)$, cela prouve que le système est définitivement stabilisé en <strong>régime permanent</strong>.</p>
+                  <p>La fin de la phrase garantit mathématiquement que cette stabilisation interviendra <strong>au plus tard</strong> à l'instant $\max(r_i) + 2H$. (Le temps de laisser la tâche la plus tardive démarrer, plus le temps de passer jusqu'à 2 cycles de chaos maximum avant de s'équilibrer).</p>
+              </div>          </div>
+      </div>
+
+      <div class="reponse-zone" data-placeholder="Analyse du cycle et tracé..."></div>
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+              <h4 style="margin-top: 0;">a) Calcul de la charge</h4>
+              <p>$U = \frac{C_1}{T_1} + \frac{C_2}{T_2} + \frac{C_3}{T_3} = \frac{8}{30} + \frac{6}{20} + \frac{6}{15} = \frac{8}{30} + \frac{9}{30} + \frac{12}{30} = \frac{29}{30} \approx 0.966$</p>
+              <p>Comme $U \le 1$, le système satisfait la condition nécessaire d'ordonnançabilité.</p>
+
+              <h4 style="margin-top: 1.5rem;">b) Diagramme d'ordonnancement avec Offsets</h4>
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="110" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">4</text>
+                    <text x="170" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">8</text>
+                    <text x="275" y="125" text-anchor="middle" font-size="10" fill="#d67556">15</text>
+                    <text x="290" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">16</text>
+                    <text x="320" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">18</text>
+                    <text x="350" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">20</text>
+
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- τ3 : [0-4] puis [18-20] -->
+                    <rect x="50" y="78" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <rect x="320" y="78" width="30" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    
+                    <!-- τ2 : [4-8] puis [16-18] -->
+                    <rect x="110" y="53" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <rect x="290" y="53" width="30" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+
+                    <!-- τ1 : [8-16] -->
+                    <rect x="170" y="28" width="120" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+
+                    <!-- Activation τ1 et τ2 -->
+                    <path d="M 110 50 L 110 110" stroke="#5ba6a0" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="110" y="15" text-anchor="middle" font-size="8" fill="#5ba6a0">r2=4</text>
+                    <path d="M 170 25 L 170 110" stroke="#d67556" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="170" y="15" text-anchor="middle" font-size="8" fill="#d67556">r1=8</text>
+                    
+                    <!-- Échéance τ3 manquée -->
+                    <line x1="275" y1="75" x2="275" y2="105" stroke="#ff4444" stroke-width="2"/>
+                    <text x="260" y="70" font-size="9" fill="#ff4444" font-weight="bold">Deadline τ3!</text>
+                </svg>
+            </div>
+
+            <p><strong>Calcul des temps de réponse :</strong></p>
+            <ul>
+                <li>$\tau_1$ : Fin à 16, $R_1 = 16 - 8 = 8$ (OK).</li>
+                <li>$\tau_2$ : Fin à 18, $R_2 = 18 - 4 = 14$ (OK).</li>
+                <li>$\tau_3$ : Fin à 20, $R_3 = 20 - 0 = 20$. <strong>Échec !</strong> ($20 > D_3=15$).</li>
+            </ul>
+              <p>L'utilisation de offsets a décalé les exécutions mais n'a pas suffi à rendre le système ordonnançable ; le pire temps de réponse simulé montre que l'ordre des tâches ne convient pas pour la $\tau_3$.</p>
+
+              <h4 style="margin-top: 1.5rem;">c) Simulation simultanée ($r_i=0$)</h4>
+              <p>On simule <strong>l'instant critique</strong> (tout le monde démarre à $t=0$) :</p>
+              <ul>
+                  <li>$\tau_1$ (Priorité 1) a la main de $t=0$ à $t=8$. (Finie, $R_1=8$).</li>
+                  <li>$\tau_2$ (Priorité 2) prend le relais de $t=8$ à $t=14$. (Finie, $R_2=14$).</li>
+                  <li>$\tau_3$ (Priorité 3) commence enfin à $t=14$. Son échéance est $D_3=15$. Or $C_3=6$, elle ne peut tourner qu'1 petite unité avant d'être hors délai. <strong>Échec cataclysmique</strong> ($\tau_3$ manquera toujours le temps nécessaire sous cette répartition fixe).</li>
+              </ul>
+              <p><strong>Conclusion :</strong> Sans les offsets pour "esquiver" cet embouteillage, le système n'est clairement pas ordonnançable.</p>
+
+              <h4 style="margin-top: 1.5rem;">d) Cas des tâches sporadiques (avec valeurs initiales)</h4>
+              <p>Dans un système sporadique avec "dates de réveil" prévues, ces dates ne représentent que la <em>toute première occurrence</em> (l'offset initial). Ensuite, les tâches peuvent se réveiller de façon asynchrone (après au minimum $T_i$).</p>
+              <p><strong>Conclusion :</strong> Par définition (propriété d'instant critique), on sait que, s'il y a des dérives, l'instant où toutes les tâches tombent <em>exactement synchronisées</em> finira par se produire au moins une fois, provoquant le pire scénario (Q5-c). Puisque le scénario simultané échoue, le système <strong>n'est pas ordonnançable en mode sporadique</strong> non plus.</p>
+          </div>
+      </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <h3>Exercice 3 — Contraintes de précédence</h3>
+
+    <div class="context-block">
+        <p>Nous considérons un système de tâches pour lesquelles <strong>$\tau_3$ précède $\tau_1$</strong>.</p>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tâche</th>
+                        <th>$r_i$ (Réveil)</th>
+                        <th>$C_i$ (WCET)</th>
+                        <th>$D_i$ (Délai)</th>
+                        <th>$T_i$ (Période)</th>
+                        <th>Prio $\Pi_i$</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>$\tau_1$</td>
+                        <td>0</td>
+                        <td>8</td>
+                        <td>12</td>
+                        <td>12</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>$\tau_2$</td>
+                        <td>1</td>
+                        <td>2</td>
+                        <td>3</td>
+                        <td>12</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td>$\tau_3$</td>
+                        <td>0</td>
+                        <td>2</td>
+                        <td>12</td>
+                        <td>12</td>
+                        <td>1</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tip-box">
+            <span class="tip-icon">💡</span>
+            <div class="tip-content">
+                <strong>Attention à la priorité :</strong> Ici, la priorité $\Pi_i=1$ est la plus forte et $\Pi_i=3$ est la plus faible. $\tau_3$ est la plus prioritaire.
+            </div>
+        </div>
+
+        <div class="callout-info">
+            <p><span class="badge badge-blue">Analogie</span></p>
+            <p><strong>Intuition de la précédence :</strong> Une contrainte de précédence est comme une recette de cuisine : vous ne pouvez pas cuire le gâteau ($\tau_1$) avant d'avoir mélangé les ingrédients ($\tau_3$), même si le four est libre et que c'est l'heure de le faire.</p>
         </div>
     </div>
 
-    <div class="reponse-zone" data-placeholder="Analyse du cycle et tracé..."></div>
+    <!-- Question a -->
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">a)</span>
+            <span class="question-pts">Tracé</span>
+            <span class="diff-badge diff-moyen">Moyen</span>
+        </div>
+        <p>Tracer la simulation de l'ordonnancement produit avec les paramètres originaux ($C_3 = 2$).</p>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Dessinez l'ordonnancement ici..."></div>
 
     <button class="solution-btn" aria-expanded="false">
         <span class="btn-arrow">▶</span>
@@ -232,37 +639,170 @@
     </button>
     <div class="solution">
         <div class="solution-inner">
-            <p>L'utilisation $U$ reste la même ($\approx 0,833$).</p>
-            <p><strong>Trace initiale :</strong></p>
+            <p><strong>Exécution avec $C_3 = 2$ :</strong></p>
             <ul>
-                <li>[0-6] : $\tau_3$ s'exécute ($r_3=0$).</li>
-                <li>[6-8] : Processeur inactif (en attente de $r_1=8$). <em>Note : $\tau_2$ réveillée à 4 mais priorité moindre.</em></li>
-                <li>[8-16] : $\tau_1$ s'exécute ($r_1=8$).</li>
-                <li>[16-22] : $\tau_2$ s'exécute ($r_2=4$, attendait la fin de $\tau_1$). $R_2 = 22-4 = 18$ (OK, $18 < 20$).</li>
+                <li><strong>$t=0$ :</strong> $\tau_1$ et $\tau_3$ sont réveillées. $\tau_3$ est la plus prioritaire ($\Pi_3=1$) et n'a aucune dépendance. Elle s'exécute.</li>
+                <li><strong>$t=1$ :</strong> $\tau_2$ est réveillée ($\Pi_2=2$), mais $\tau_3$ est toujours plus prioritaire. $\tau_3$ continue.</li>
+                <li><strong>$t=2$ :</strong> $\tau_3$ termine. Cela débloque $\tau_1$ (contrainte satisfaite). Le processeur est libre, on compare les priorités des tâches prêtes : $\tau_1$ ($\Pi_1=3$) et $\tau_2$ ($\Pi_2=2$). $\tau_2$ est plus prioritaire.</li>
+                <li><strong>$t=2 \rightarrow 4$ :</strong> $\tau_2$ s'exécute et termine à $t=4$. (Son délai était $r_2+D_2 = 1+3 = 4$, donc respecté de justesse).</li>
+                <li><strong>$t=4 \rightarrow 12$ :</strong> $\tau_1$ s'exécute et termine exactement à $t=12$, respectant son délai.</li>
             </ul>
+
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <!-- Grille de fond -->
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="410" y1="20" x2="410" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+
+                    <!-- Axes -->
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks temps (1 unité = 30px) -->
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="80" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">1</text>
+                    <text x="110" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">2</text>
+                    <text x="170" y="125" text-anchor="middle" font-size="10" fill="#d67556">4</text>
+                    <text x="410" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">12</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- Exécutions -->
+                    <!-- τ3 : [0-2] = 60px -->
+                    <rect x="50" y="78" width="60" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="80" y="91" text-anchor="middle" font-size="9" fill="#f5f3f0">C3=2</text>
+
+                    <!-- τ2 : [2-4] = 60px -->
+                    <rect x="110" y="53" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="140" y="66" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=2</text>
+
+                    <!-- τ1 : [4-12] = 240px -->
+                    <rect x="170" y="28" width="240" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <text x="290" y="41" text-anchor="middle" font-size="9" fill="#f5f3f0">C1=8</text>
+                    
+                    <!-- Flèche de précédence -->
+                    <path d="M 110 87 L 110 75 L 170 75 L 170 46" fill="none" stroke="#f5f3f0" stroke-width="1.5" stroke-dasharray="2 2"/>
+                    <polygon points="167,50 173,50 170,46" fill="#f5f3f0" />
+                    
+                    <!-- Réveils et Échéances -->
+                    <!-- Réveil t2 -->
+                    <line x1="80" y1="52" x2="80" y2="72" stroke="#5ba6a0" stroke-width="1.5" />
+                    <polygon points="77,55 83,55 80,52" fill="#5ba6a0" />
+                    
+                    <!-- Échéance t2 -->
+                    <line x1="170" y1="52" x2="170" y2="72" stroke="#d67556" stroke-width="2" />
+                    <line x1="166" y1="52" x2="174" y2="52" stroke="#d67556" stroke-width="2" />
+                    <line x1="166" y1="72" x2="174" y2="72" stroke="#d67556" stroke-width="2" />
+                </svg>
+            </div>
+
+            <div class="algo-block">
+                <p><strong>Bilan de l'ordonnancement complet :</strong> [$\tau_3$ (0-2)] $\rightarrow$ [$\tau_2$ (2-4)] $\rightarrow$ [$\tau_1$ (4-12)]</p>
+                <p><em>Toutes les échéances sont respectées.</em></p>
+            </div>
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- EXERCICE 3                                     -->
-    <!-- ══════════════════════════════════════════════ -->
-    <h3>Exercice 3 — Contraintes de précédence</h3>
-
-    <div class="context-block">
-        <p>On considère un système où <strong>$\tau_3$ précède $\tau_1$</strong>. Les paramètres sont les mêmes qu'à l'exercice 1, mais les priorités sont modifiées.</p>
-        <div class="callout-info">
-            <p><span class="badge badge-blue">Analogie</span></p>
-            <p><strong>Intuition :</strong> Une contrainte de précédence est comme une recette de cuisine : vous ne pouvez pas cuire le gâteau ($\tau_1$) avant d'avoir mélangé les ingrédients ($\tau_3$), même si le four est déjà chaud.</p>
-        </div>
-    </div>
-
+    <!-- Question b -->
     <div class="question">
         <div class="question-header">
-            <span class="question-num">Q4</span>
-            <span class="question-pts">3 pts</span>
+            <span class="question-num">b)</span>
+            <span class="question-pts">Simulation modifiée</span>
+            <span class="diff-badge diff-moyen">Moyen</span>
+        </div>
+        <p>Supposer maintenant que $C_3=1$, tracer la simulation.</p>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Tracez le nouveau scénario..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>Exécution avec $C_3 = 1$ (exécution plus rapide) :</strong></p>
+            <ul>
+                <li><strong>$t=0$ :</strong> $\tau_3$ démarre et s'exécute pendant 1 unité de temps.</li>
+                <li><strong>$t=1$ :</strong> $\tau_3$ se termine. Elle libère <strong>immédiatement</strong> $\tau_1$ ($\Pi_1=3$). À ce même instant, $\tau_2$ se réveille ($\Pi_2=2$).</li>
+                <li>Entre $\tau_1$ et $\tau_2$, c'est $\tau_2$ la plus prioritaire.</li>
+                <li><strong>$t=1 \rightarrow 3$ :</strong> $\tau_2$ s'exécute entièrement et termine à $t=3$. Délai respecté ($3 \le 4$).</li>
+                <li><strong>$t=3 \rightarrow 11$ :</strong> $\tau_1$ prend le relais et termine à $t=11$.</li>
+            </ul>
+
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <!-- Grille de fond -->
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="380" y1="20" x2="380" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+
+                    <!-- Axes -->
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks temps (1 unité = 30px) -->
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="80" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">1</text>
+                    <text x="140" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">3</text>
+                    <text x="170" y="125" text-anchor="middle" font-size="10" fill="#d67556">4</text>
+                    <text x="380" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">11</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- Exécutions -->
+                    <!-- τ3 : [0-1] = 30px -->
+                    <rect x="50" y="78" width="30" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                    <text x="65" y="91" text-anchor="middle" font-size="9" fill="#f5f3f0">C3=1</text>
+
+                    <!-- τ2 : [1-3] = 60px -->
+                    <rect x="80" y="53" width="60" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <text x="110" y="66" text-anchor="middle" font-size="9" fill="#f5f3f0">C2=2</text>
+
+                    <!-- τ1 : [3-11] = 240px -->
+                    <rect x="140" y="28" width="240" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <text x="260" y="41" text-anchor="middle" font-size="9" fill="#f5f3f0">C1=8</text>
+                    
+                    <!-- Flèche de précédence -->
+                    <path d="M 80 87 L 80 75 L 140 75 L 140 46" fill="none" stroke="#f5f3f0" stroke-width="1.5" stroke-dasharray="2 2"/>
+                    <polygon points="137,50 143,50 140,46" fill="#f5f3f0" />
+                    
+                    <!-- Réveils et Échéances -->
+                    <!-- Réveil t2 -->
+                    <line x1="80" y1="52" x2="80" y2="72" stroke="#5ba6a0" stroke-width="1.5" />
+                    <polygon points="77,55 83,55 80,52" fill="#5ba6a0" />
+                    
+                    <!-- Échéance t2 -->
+                    <line x1="170" y1="52" x2="170" y2="72" stroke="#d67556" stroke-width="2" />
+                    <line x1="166" y1="52" x2="174" y2="52" stroke="#d67556" stroke-width="2" />
+                    <line x1="166" y1="72" x2="174" y2="72" stroke="#d67556" stroke-width="2" />
+                </svg>
+            </div>
+
+            <div class="algo-block">
+                <p><strong>Bilan :</strong> [$\tau_3$ (0-1)] $\rightarrow$ [$\tau_2$ (1-3)] $\rightarrow$ [$\tau_1$ (3-11)]</p>
+            </div>
+            <p>Dans ce cas particulier, terminer $\tau_3$ plus tôt n'a pas posé de problème, les échéances sont respectées.</p>
+        </div>
+    </div>
+
+    <!-- Question c -->
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">c)</span>
+            <span class="question-pts">Conclusion (C-Viabilité)</span>
             <span class="diff-badge diff-avance">Avancé</span>
         </div>
         <p>Que conclure sur la viabilité de la simulation lorsqu'il existe des contraintes de précédence ?</p>
+    </div>
+
+    <div class="erreur-freq">
+        <strong>L'Effet Papillon (Anomalie d'ordonnancement de Richard) :</strong> En temps réel, on pourrait penser que si une tâche termine *plus tôt* que prévu, c'est une bonne nouvelle. Pourtant, finir trop tôt peut débloquer la suite de la chaîne de manière précoce, ce qui pourrait court-circuiter une autre tâche si l'ordre des priorités entraîne une préemption redoutable.
     </div>
 
     <div class="reponse-zone" data-placeholder="Réflexion sur la viabilité..."></div>
@@ -273,55 +813,84 @@
     </button>
     <div class="solution">
         <div class="solution-inner">
-            <p>Les contraintes de précédence peuvent <strong>rompre la C-viabilité</strong> dans certains contextes d'ordonnancement dynamique ou avec des portions non préemptibles.</p>
-            <p>Si $\tau_3$ finit plus tôt que prévu, elle pourrait libérer $\tau_1$ à un instant qui provoque une préemption défavorable pour une autre tâche $\tau_2$, augmentant ainsi le temps de réponse de cette dernière. C'est une <strong>anomalie d'ordonnancement</strong>.</p>
+            <p>Les contraintes de précédence <strong>rompent la propriété de C-viabilité</strong> (sustainability) de l'ordonnancement.</p>
+            <p>La C-viabilité stipule que si un système est ordonnançable avec un certain jeu de WCET, il doit <em>toujours</em> l'être si l'exécution prend <em>moins</em> de temps. Avec des contraintes de précédence, libérer une tâche "trop tôt" altère la séquence des tâches prêtes, ce qui peut potentiellement provoquer une famine sur une autre tâche qui arrivait plus tard.</p>
+            
+            <div class="compare-grid" style="margin-top: 1rem;">
+                <div class="compare-item neutral" data-label="Scénario nominal">
+                    <p>La tâche amont prend tout son temps. La tâche dépendante démarre tard. Le processeur s'occupe des autres tâches pendant ce temps-là.</p>
+                </div>
+                <div class="compare-item bad" data-label="Anomalie avec C plus petit">
+                    <p>La tâche amont s'achève vite. La tâche très "lourde" mais prioritaire qui en dépend est libérée et monopolise le processeur, retardant une tâche urgente (dont l'échéance est courte) pourtant indépendante.</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
     <!-- EXERCICE 4                                     -->
     <!-- ══════════════════════════════════════════════ -->
-    <h3>Exercice 4 — Exclusion mutuelle et sections non-préemptibles</h3>
+    <h3>Exercice 4 — Exclusion mutuelle et portions non-préemptibles</h3>
 
     <div class="context-block">
-        <p>Considérons un système de trois tâches où $\tau_1$ et $\tau_2$ sont en exclusion mutuelle pendant toute leur durée (accès à une ressource partagée unique).</p>
-        <div class="table-glass">
+        <p>Nous considérons un système de tâches pour lesquelles <strong>$\tau_1$ et $\tau_2$ sont en exclusion mutuelle pendant toute leur durée</strong>. Nous supposons une affectation de priorités Deadline Monotonic (Prio inversement proportionnelle au délai critique, donc D_i le plus petit = Prio la plus forte).</p>
+        
+        <div style="display:flex; justify-content:center; margin: 1rem 0;">
+            <svg width="300" height="100" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Ressource -->
+                <rect x="110" y="10" width="80" height="30" rx="15" fill="rgba(91,166,160,0.2)" stroke="#5ba6a0" stroke-width="2"/>
+                <text x="150" y="30" text-anchor="middle" font-size="10" fill="#5ba6a0" font-weight="bold">Ressource S</text>
+                
+                <!-- Accès τ1 -->
+                <path d="M 60 70 Q 60 40 110 30" stroke="#9e9a94" stroke-width="2" stroke-dasharray="4 2"/>
+                <circle cx="60" cy="70" r="15" fill="rgba(158,154,148,0.1)" stroke="#9e9a94" stroke-width="2"/>
+                <text x="60" y="74" text-anchor="middle" font-size="10" fill="#f5f3f0">τ1</text>
+                <text x="50" y="95" font-size="8" fill="#9e9a94">Basse priorité</text>
+
+                <!-- Accès τ2 -->
+                <path d="M 240 70 Q 240 40 190 30" stroke="#d67556" stroke-width="2" stroke-dasharray="4 2"/>
+                <circle cx="240" cy="70" r="15" fill="rgba(214,117,86,0.1)" stroke="#d67556" stroke-width="2"/>
+                <text x="240" y="74" text-anchor="middle" font-size="10" fill="#f5f3f0">τ2</text>
+                <text x="220" y="95" font-size="8" fill="#d67556">Haute priorité</text>
+                
+                <!-- Symbole exclusion -->
+                <circle cx="150" cy="70" r="10" stroke="#ff4444" stroke-width="2"/>
+                <line x1="143" y1="63" x2="157" y2="77" stroke="#ff4444" stroke-width="2"/>
+                <text x="150" y="90" text-anchor="middle" font-size="9" fill="#ff4444">Mutex</text>
+            </svg>
+        </div>
+
+        <div class="table-container">
             <table>
                 <thead>
                     <tr><th>Tâche</th><th>$r_i$</th><th>$C_i$</th><th>$D_i$</th><th>$T_i$</th><th>$\Pi_i$ (DM)</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>$\tau_1$</td><td>0</td><td>6</td><td>16</td><td>16</td><td>1 (Basse)</td></tr>
-                    <tr><td>$\tau_2$</td><td>0</td><td>2</td><td>6</td><td>8</td><td>3 (Haute)</td></tr>
+                    <tr><td>$\tau_1$</td><td>0</td><td>6</td><td>16</td><td>16</td><td>3 (Basse)</td></tr>
+                    <tr><td>$\tau_2$</td><td>0</td><td>2</td><td>6</td><td>8</td><td>1 (Haute)</td></tr>
                     <tr><td>$\tau_3$</td><td>0</td><td>6</td><td>15</td><td>16</td><td>2 (Moyenne)</td></tr>
                 </tbody>
             </table>
         </div>
-        <p class="inline-note">Note : Les priorités suivent la règle Deadline Monotonic (DM).</p>
+        <p class="inline-note">Note : La priorité est dictée par $D_i$ : $\tau_2$ ($D=6$) > $\tau_3$ ($D=15$) > $\tau_1$ ($D=16$).</p>
+
+        <div class="callout-info" style="margin-top: 1rem;">
+            <p><span class="badge badge-blue">Inversion de Priorité</span></p>
+            <p><strong>Règle du jeu :</strong> L'exclusion mutuelle "pendant toute leur durée" signifie concrètement que si $\tau_1$ a commencé à s'exécuter, elle a pris la ressource commune avec $\tau_2$. Si $\tau_2$ arrive, même avec sa priorité n°1, elle <strong>ne pourra pas préempter $\tau_1$</strong> tant que celle-ci n'aura pas terminé.</p>
+        </div>
     </div>
 
+    <!-- Question a -->
     <div class="question">
         <div class="question-header">
-            <span class="question-num">Q5</span>
-            <span class="question-pts">4 pts</span>
-            <span class="diff-badge diff-avance">Avancé</span>
+            <span class="question-num">a)</span>
+            <span class="question-pts">Tracé régulier</span>
+            <span class="diff-badge diff-moyen">Moyen</span>
         </div>
-        <p>Tracer la simulation. Que se passe-t-il si la durée d'exécution de la tâche de plus basse priorité ($\tau_1$) diminue à $C_1=3$ ?</p>
-
-        <div class="erreur-freq">
-            <strong>Piège courant :</strong> Penser qu'une réduction de temps d'exécution ($C_i$) améliore <em>toujours</em> l'ordonnançabilité. Dans un système avec sections non-préemptibles, cela peut provoquer des blocages ou des inversions de priorité imprévus.
-        </div>
-
-        <button class="hint-btn" data-hint="q5-h1" data-label="Indice sur l'exclusion mutuelle" aria-expanded="false">
-            <span class="btn-arrow">▶</span>
-            <span class="btn-label">Indice sur l'exclusion mutuelle</span>
-        </button>
-        <div class="hint" id="q5-h1">
-            Si $\tau_1$ (basse priorité) s'exécute et détient la ressource, $\tau_2$ (haute priorité) peut être bloquée même si elle se réveille, car elle doit attendre la libération de la ressource par $\tau_1$.
-        </div>
+        <p>Tracer la simulation de ce système.</p>
     </div>
 
-    <div class="reponse-zone" data-placeholder="Analyse de l'impact de la réduction de C1..."></div>
+    <div class="reponse-zone" data-placeholder="Tracez le cas nominal..."></div>
 
     <button class="solution-btn" aria-expanded="false">
         <span class="btn-arrow">▶</span>
@@ -329,7 +898,186 @@
     </button>
     <div class="solution">
         <div class="solution-inner">
-            <p><strong>Constat :</strong> La réduction de $C_1$ peut paradoxalement augmenter le temps de réponse d'une autre tâche. C'est la preuve que le système n'est pas <strong>C-viable</strong> en présence de sections non-préemptibles sans protocole spécifique (comme PCP).</p>
+            <p><strong>Exécution avec le jeu de valeurs initiales :</strong></p>
+            <ul>
+                <li><strong>$t=0$ :</strong> Les trois tâches sont réveillées. $\tau_2$ est la plus prioritaire. Elle prend le verrou et s'exécute.</li>
+                <li><strong>$t=2$ :</strong> $\tau_2$ termine et relâche le verrou. $\tau_3$ est alors la plus prioritaire parmi celles prêtes. Elle s'exécute. (Elle n'a pas besoin du verrou).</li>
+                <li><strong>$t=8$ :</strong> $\tau_3$ termine. Mais attention, à cet exact instant, la <strong>2ème instance de $\tau_2$</strong> se réveille ($T_2 = 8$). Entre $\tau_1$ (qui attendait sagement) et $\tau_2$, $\tau_2$ est plus prioritaire et prend le processeur (et le verrou). $\tau_1$ continue d'attendre.</li>
+                <li><strong>$t=10$ :</strong> La 2ème instance de $\tau_2$ termine. Échéance de $\tau_2$ respectée. Enfin, $\tau_1$ peut démarrer et s'exécute de 10 à 16.</li>
+                <li><strong>$t=16$ :</strong> $\tau_1$ termine. Son échéance était $16$. C'est rat-rapé de justesse !</li>
+            </ul>
+
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <!-- Grille -->
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="250" y1="20" x2="250" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    
+                    <!-- Axes -->
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks (1 unité = 25px) -->
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="100" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">2</text>
+                    <text x="250" y="125" text-anchor="middle" font-size="10" fill="#d67556">8</text>
+                    <text x="300" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">10</text>
+                    <text x="450" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">16</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- τ2 instance 1 : [0-2] -->
+                    <rect x="50" y="53" width="50" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <!-- τ3 : [2-8] -->
+                    <rect x="100" y="78" width="150" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    <!-- τ2 instance 2 : [8-10] -->
+                    <rect x="250" y="53" width="50" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    <line x1="250" y1="52" x2="250" y2="72" stroke="#d67556" stroke-width="1.5" />
+                    <polygon points="247,55 253,55 250,52" fill="#d67556" />
+                    <!-- τ1 : [10-16] -->
+                    <rect x="300" y="28" width="150" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#9e9a94" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <p><strong>Conclusion a) :</strong> L'ordonnancement est valide. $\tau_1$ respecte son échéance ($t=16$) au moment de sa deadline $D_1=16$.</p>
+        </div>
+    </div>
+
+    <!-- Question b -->
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">b)</span>
+            <span class="question-pts">Simulation altérée</span>
+            <span class="diff-badge diff-difficile">Difficile</span>
+        </div>
+        <p>Tracer une simulation lorsque $C_3=5$.</p>
+        <button class="hint-btn" data-hint="q7-h1" data-label="Indice sur l'exclusion mutuelle" aria-expanded="false">
+            <span class="btn-arrow">▶</span>
+            <span class="btn-label">Indice de progression</span>
+        </button>
+        <div class="hint" id="q7-h1">
+            Si $\tau_3$ termine plus tôt, ça laisse la place à la tâche en attente. Mais si la tâche bloquante ($\tau_1$) démarre, que se passe-t-il lors du prochain réveil de la très prioritaire $\tau_2$ ?
+        </div>
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Réfléchissez à l'effet de la réduction..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>Exécution avec $C_3 = 5$ (Accélération de la tâche intermédiaire) :</strong></p>
+            <ul>
+                <li><strong>$t=0 \rightarrow 2$ :</strong> $\tau_2$ s'exécute normalement.</li>
+                <li><strong>$t=2 \rightarrow 7$ :</strong> $\tau_3$ s'exécute pour $C_3=5$ et termine à $t=7$.</li>
+                <li><strong>$t=7$ :</strong> Il n'y a plus que $\tau_1$ d'en attente. $\tau_1$ prend donc le processeur. <strong>CRITIQUE : Dès qu'elle démarre, elle verrouille la ressource commune avec $\tau_2$.</strong></li>
+                <li><strong>$t=8$ :</strong> La 2ème instance de $\tau_2$ arrive ! Elle veut le processeur ($\Pi_2=1 > \Pi_1=3$). Mais <strong>horreur</strong>, $\tau_2$ est bloquée par l'exclusion mutuelle car $\tau_1$ est déjà entrée dans sa longue section non-préemptible.</li>
+                <li><strong>$t=8 \rightarrow 13$ :</strong> $\tau_1$ poursuit son exécution jusqu'au bout ($7+6 = 13$).</li>
+                <li><strong>$t=13$ :</strong> $\tau_1$ termine libère l'accès. $\tau_2$ peut enfin s'exécuter.</li>
+                <li><strong>$t=13 \rightarrow 15$ :</strong> $\tau_2$ s'exécute et finit à 15.
+                    <br><em>Cependant, la deadline de cette instance était $r_2 + D_2 = 8 + 6 = 14$ !</em>
+                </li>
+            </ul>
+
+            <div style="display:flex; justify-content:center; margin: 1.5rem 0;">
+                <svg width="550" height="140" viewBox="0 0 550 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <!-- Grille -->
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2"/>
+                    <line x1="250" y1="20" x2="250" y2="110" stroke="#9e9a94" stroke-width="1" opacity="0.2" stroke-dasharray="4 4"/>
+                    
+                    <!-- Axes -->
+                    <line x1="50" y1="110" x2="520" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="50" y1="20" x2="50" y2="110" stroke="#9e9a94" stroke-width="2" stroke-linecap="round"/>
+
+                    <!-- Ticks (1 unité = 25px) -->
+                    <text x="50" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">0</text>
+                    <text x="100" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">2</text>
+                    <text x="225" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">7</text>
+                    <text x="250" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">8</text>
+                    <text x="375" y="125" text-anchor="middle" font-size="10" fill="#9e9a94">13</text>
+                    <text x="400" y="125" text-anchor="middle" font-size="10" fill="#d67556" font-weight="bold">14</text>
+                    <text x="425" y="125" text-anchor="middle" font-size="10" fill="#ff4444" font-weight="bold">15</text>
+
+                    <!-- Labels tâches -->
+                    <text x="15" y="40" font-size="12" fill="#f5f3f0" font-weight="600">τ1</text>
+                    <text x="15" y="65" font-size="12" fill="#f5f3f0" font-weight="600">τ2</text>
+                    <text x="15" y="90" font-size="12" fill="#f5f3f0" font-weight="600">τ3</text>
+
+                    <!-- τ2 instance 1 : [0-2] -->
+                    <rect x="50" y="53" width="50" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    
+                    <!-- τ3 : [2-7] = 5 unités = 125px -->
+                    <rect x="100" y="78" width="125" height="18" rx="3" fill="rgba(91,166,160,0.3)" stroke="#5ba6a0" stroke-width="1.5"/>
+                    
+                    <!-- τ1 : [7-13] = 6 unités = 150px -->
+                    <rect x="225" y="28" width="150" height="18" rx="3" fill="rgba(158,154,148,0.3)" stroke="#5ba6a0" stroke-width="3" stroke-dasharray="2 2" /> 
+                    <!-- (border pour indiquer mutex) -->
+                    <rect x="225" y="28" width="150" height="18" rx="3" fill="rgba(158,154,148,0.5)" stroke="#9e9a94" stroke-width="1.5"/>
+                    
+                    <!-- Info Mutex verrouillé -->
+                    <text x="300" y="41" text-anchor="middle" font-size="9" fill="#f5f3f0">VERROUILLÉ</text>
+
+                    <!-- τ2 instance 2 : [13-15] -->
+                    <rect x="375" y="53" width="50" height="18" rx="3" fill="rgba(214,117,86,0.3)" stroke="#d67556" stroke-width="1.5"/>
+                    
+                    <!-- Blocage de τ2 à t=8 -->
+                    <line x1="250" y1="52" x2="250" y2="72" stroke="#d67556" stroke-width="1.5" />
+                    <polygon points="247,55 253,55 250,52" fill="#d67556" />
+                    <rect x="250" y="58" width="125" height="8" rx="2" fill="none" stroke="#ff4444" stroke-width="1" stroke-dasharray="2 2"/>
+                    <text x="312" y="65" text-anchor="middle" font-size="8" fill="#ff4444">Bloquée par τ1</text>
+                    
+                    <!-- Deadline τ2 à t=14 ratée -->
+                    <line x1="400" y1="52" x2="400" y2="72" stroke="#ff4444" stroke-width="2" />
+                    <line x1="396" y1="52" x2="404" y2="52" stroke="#ff4444" stroke-width="2" />
+                    <line x1="396" y1="72" x2="404" y2="72" stroke="#ff4444" stroke-width="2" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question c -->
+    <div class="question">
+        <div class="question-header">
+            <span class="question-num">c)</span>
+            <span class="question-pts">Conclusion (C-Viabilité)</span>
+            <span class="diff-badge diff-avance">Avancé</span>
+        </div>
+        <p>Que conclure sur la viabilité de la simulation lorsqu'il existe des portions de tâches non préemptibles ?</p>
+    </div>
+
+    <div class="erreur-freq">
+        <strong>Piège courant :</strong> Penser qu'une réduction de temps d'exécution ($C_i$) améliore <em>toujours</em> l'ordonnançabilité. Dans un système avec sections non-préemptibles, cela peut provoquer des blocages ou des inversions de priorité mortelles.
+    </div>
+
+    <div class="reponse-zone" data-placeholder="Analyse de la viabilité..."></div>
+
+    <button class="solution-btn" aria-expanded="false">
+        <span class="btn-arrow">▶</span>
+        <span class="btn-label">Voir la solution</span>
+    </button>
+    <div class="solution">
+        <div class="solution-inner">
+            <p><strong>Démonstration de l'anomalie de C-viabilité :</strong></p>
+            
+            <div class="compare-grid" style="margin-top: 1rem;">
+                <div class="compare-item neutral" data-label="Si C₃ = 6 (Nominal)">
+                    <p>$\tau_3$ s'exécute longtemps. $\tau_1$ ne peut pas s'y immiscer et attend. $\tau_2$ arrive, se sert, et les tâches s'emboîtent au chausse-pied sans heurts. Le verrou n'est pris par $\tau_1$ qu'une fois les priorités urgentes passées.</p>
+                </div>
+                <div class="compare-item bad" data-label="Si C₃ = 5 (Perte de C-viabilité)">
+                    <p>$\tau_3$ termine "un peu trop tôt". $\tau_1$ vole de manière opportuniste le verrou partagé. Une tâche hautement prioritaire ($\tau_2$) s'écrase sur ce verrou juste après, et doit payer le plein prix de la non-préemption de $\tau_1$.</p>
+                </div>
+            </div>
+
+            <p style="margin-top: 1rem;">De manière générale, réduire $C_i$ décale tous les futurs événements prévus. Dans un système avec exclusion mutuelle, ce décalage temporel peut ouvrir des "fenêtres de vulnérabilité" où une tâche basse priorité commence une section non-préemptible juste avant le réveil d'une tâche urgente. </p>
+            
+            <div class="callout-info">
+                <strong>Constat :</strong> Une telle simulation <strong>n'est pas C-viable</strong>. La simple diminution du WCET a entraîné le dépassement d'échéance d'une autre tâche (Anomalie de Richard).
+            </div>
         </div>
     </div>
 
